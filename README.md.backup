@@ -17,6 +17,6 @@ Secondary requirements:
 6) Be capable of transmitting telemetry during the whole flight.
 7) Be capable of air starting.
 
-Hopefully, this repository will eventually have reference implementation schematics, BOMs, Gerber files and code.
+Hopefully, this repository will eventually have reference implementatiuschematics, BOMs, Gerber files and code.
 
 I have selected the Raspberry Pi Pico as the platform to build on, mainly because I want to learn its capabilities and it looks rather interesting.
