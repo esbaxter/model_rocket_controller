@@ -5,7 +5,7 @@ This repository is the ongoing build of model rocket data collection system and 
 1) Record altitude above ground on a one second interval, retrievable after landing.
 2) Record Z-axis (vertical) velocity on a one second interval, retrievable after landing.
 3) Record Z-axis acceleration on a one second interval, retrievable after landing.
-4) Re
+4) Record up to 10 minutes of data starting at liftoff and ending at touchdown on a non-volatile media.
 
 
 Secondary requirements:

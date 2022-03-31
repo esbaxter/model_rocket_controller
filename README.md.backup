@@ -5,7 +5,7 @@ This repository is the ongoing build of model rocket data collection system and 
 1) Record altitude above ground on a one second interval, retrievable after landing.
 2) Record Z-axis (vertical) velocity on a one second interval, retrievable after landing.
 3) Record Z-axis acceleration on a one second interval, retrievable after landing.
-4) Re
+4) Re up to 10 minutes of data starting at liftoff and ending
 
 
 Secondary requirements:
@@ -17,6 +17,6 @@ Secondary requirements:
 6) Be capable of transmitting telemetry during the whole flight.
 7) Be capable of air starting.
 
-Hopefully, this repository will eventually have reference implementatiuschematics, BOMs, Gerber files and code.
+Hopefully, this repository will eventually have reference implementation schematics, BOMs, Gerber files and code.
 
 I have selected the Raspberry Pi Pico as the platform to build on, mainly because I want to learn its capabilities and it looks rather interesting.
