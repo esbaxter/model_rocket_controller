@@ -23,6 +23,7 @@ Interface into the support software for a variety of humidity, temperature
 and barometric pressure chips.
 
 */
+
 #include "barometer.h"
 #include "bme280.h"
 
@@ -45,7 +46,7 @@ Error_Returns barometer_init(uint32_t id, Barometer_mode mode)
 	Error_Returns to_return = RPi_NotInitialized;
 	do
 	{
-		if (id < NUMBER_SUPPORTED_DEVICES)
+		if (id >= NUMBER_SUPPORTED_DEVICES)
 		{
 			to_return = RPi_InvalidParam;
 			break;
