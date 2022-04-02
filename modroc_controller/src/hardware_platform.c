@@ -46,7 +46,7 @@ static Error_Returns configure_busses()
 	Error_Returns to_return = RPi_NotInitialized;
     do
 	{
-		uint baud_rate = i2c_init(i2c_default, DESIRED_I2C_BAUD_RATE);
+		uint baud_rate = i2c_init(i2c0, DESIRED_I2C_BAUD_RATE);
 		if (baud_rate != DESIRED_I2C_BAUD_RATE)
 		{
 			printf("configure_busses:  failed to configure i2c\n");
@@ -69,7 +69,8 @@ static Error_Returns configure_altimeter()
 	
 	do
 	{
-		to_return = barometer_init(&barometer_id[0], BAROMETER_ADDRESS);
+		//Current design has all barometeric chips on i2c0
+		to_return = barometer_init(&barometer_id[0], i2c0, BAROMETER_ADDRESS);
 		if (to_return != RPi_Success)
 		{
 			printf("configure_altimeter():  barometer_init failed: %u\n", to_return);

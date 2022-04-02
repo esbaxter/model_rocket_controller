@@ -25,6 +25,8 @@ and barometric pressure chip.
 */
 
 #pragma once
+#include "hardware/i2c.h"
+
 #include "common.h"
 #include "barometer.h"
 
@@ -34,7 +36,7 @@ typedef int BME280_S32_t;
 typedef unsigned int BME280_U32_t;
 typedef long long signed int BME280_S64_t;
 
-Error_Returns bme280_init(uint32_t id, uint32_t address);
+Error_Returns bme280_init(uint32_t id, i2c_inst_t *i2c, uint32_t address);
 
 Error_Returns bme280_reset(uint32_t id);
 

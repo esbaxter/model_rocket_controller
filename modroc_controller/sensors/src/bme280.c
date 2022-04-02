@@ -26,8 +26,8 @@ Note:  The conversion algorithms were taken directly from the BME 280 spec sheet
 */
 
 #include <stdio.h>
-#include "hardware/i2c.h"
 #include "pico/stdlib.h"
+
 #include "bme280.h"
 
 #define BME280_CHIP_ID 0x60
@@ -93,6 +93,7 @@ typedef struct Comp_Params {
 
 	BME280_S32_t t_fine;
 	uint32_t address;
+	i2c_inst_t *i2c;
 } Compensation_Parameters;
 
 static Compensation_Parameters bme280_compensation_params[BAROMETER_NUMBER_SUPPORTED_DEVICES];
@@ -102,10 +103,10 @@ static unsigned char bme280_ready = 0;
 static uint32_t pressure_temperature_xlsb_mask = 0;
 
 //Communication routine with the BME 280
-static Error_Returns bme280_write(uint32_t address, unsigned char *buffer, unsigned int tx_bytes)
+static Error_Returns bme280_write(Compensation_Parameters *params_ptr, unsigned char *buffer, unsigned int tx_bytes)
 {	
 	Error_Returns to_return = RPi_Success;
-	if (i2c_write_blocking(i2c_default, address, buffer, tx_bytes, false) ==
+	if (i2c_write_blocking(params_ptr->i2c, params_ptr->address, buffer, tx_bytes, false) ==
 		PICO_ERROR_GENERIC)
 	{
 		to_return = I2CS_Data_Loss;
@@ -115,13 +116,13 @@ static Error_Returns bme280_write(uint32_t address, unsigned char *buffer, unsig
 
 
 //Communication routine with the BME 280
-static Error_Returns bme280_read(uint32_t address, unsigned char *buffer, unsigned int rx_bytes)
+static Error_Returns bme280_read(Compensation_Parameters *params_ptr, unsigned char *buffer, unsigned int rx_bytes)
 {
 	Error_Returns to_return = RPi_Success;
-	to_return = bme280_write(address,  buffer, 1);
+	to_return = bme280_write(params_ptr, buffer, 1);
 	if (to_return == RPi_Success)
 	{
-		if (i2c_read_blocking(i2c_default, address, buffer, rx_bytes, false) ==
+		if (i2c_read_blocking(params_ptr->i2c, params_ptr->address, buffer, rx_bytes, false) ==
 			PICO_ERROR_GENERIC)
 		{
 			to_return = I2CS_Data_Loss;
@@ -219,7 +220,7 @@ static void bme280_extract_long_data(unsigned char *buffer, BME280_S32_t *data_p
 }
 
 //Read all the data from the chip
-static Error_Returns bme280_read_data(uint32_t address, BME280_S32_t *adc_T_ptr, BME280_S32_t *adc_P_ptr)
+static Error_Returns bme280_read_data(Compensation_Parameters *params_ptr, BME280_S32_t *adc_T_ptr, BME280_S32_t *adc_P_ptr)
 {
 	Error_Returns to_return = RPi_NotInitialized;
     unsigned int data_lsb = 0;
@@ -236,7 +237,7 @@ static Error_Returns bme280_read_data(uint32_t address, BME280_S32_t *adc_T_ptr,
 			for(index = 0; index < BME280_DATA_REGISTER_SIZE; index++) buffer[index] = 0;
 			
 			buffer[0] = BME280_FIRST_DATA_REGISTER;
-			to_return = bme280_read(address, buffer, BME280_DATA_REGISTER_SIZE);
+			to_return = bme280_read(params_ptr, buffer, BME280_DATA_REGISTER_SIZE);
 			if (to_return != RPi_Success) break;  //No need to continue, just return the error
 
 		   /* Store the parsed register values for pressure data */
@@ -254,7 +255,7 @@ static Error_Returns bme280_read_data(uint32_t address, BME280_S32_t *adc_T_ptr,
 /* Assumes the I2C bus has been intialized and the id has been vetted
    to be within an acceptable range.
 */
-Error_Returns bme280_init(uint32_t id, uint32_t address)
+Error_Returns bme280_init(uint32_t id, i2c_inst_t *i2c, uint32_t address)
 {	
 	Error_Returns to_return = RPi_Success;
 	unsigned char buffer[BME280_TRIM_PARAMETER_BYTES];
@@ -262,13 +263,14 @@ Error_Returns bme280_init(uint32_t id, uint32_t address)
 	
 	Compensation_Parameters *params_ptr = &bme280_compensation_params[id];
 	params_ptr->address = address;
+	params_ptr->i2c = i2c;
 	
 	do
 	{	
 		for(index = 0; index < BME280_TRIM_PARAMETER_BYTES; index++) buffer[index] = 0;
 		
 		buffer[0] = BME280_CHIP_RPi_REGISTER;
-		to_return = bme280_read(address, buffer, 1);
+		to_return = bme280_read(params_ptr, buffer, 1);
 		if (to_return != RPi_Success)
 			{
 			printf("bme280_init():  Error reading chip ID read was %u\n", to_return);
@@ -282,7 +284,7 @@ Error_Returns bme280_init(uint32_t id, uint32_t address)
 		//Read then unpack the compensation parameters stored in the chip
 		for(index = 0; index < BME280_TRIM_PARAMETER_BYTES; index++) buffer[index] = 0;
 		buffer[0] = BME280_FIRST_TRIM_PARAMETER;
-		to_return = bme280_read(address, buffer, BME280_TRIM_PARAMETER_BYTES);
+		to_return = bme280_read(params_ptr, buffer, BME280_TRIM_PARAMETER_BYTES);
 		if (to_return != RPi_Success) break;  //No need to continue just return the failure
 		
 		index = 0;
@@ -315,14 +317,14 @@ Error_Returns bme280_init(uint32_t id, uint32_t address)
 		
 		for(index = 0; index < BME280_TRIM_PARAMETER_BYTES; index++) buffer[index] = 0;
 		buffer[0] = BME280_SECOND_TRIM_PARAMETER;
-		to_return = bme280_read(address, buffer, 1);
+		to_return = bme280_read(params_ptr, buffer, 1);
 		if (to_return != RPi_Success) break;  //No need to continue just return the failure
 		
 		params_ptr->dig_H1 = buffer[0] & 0xFF;
 		
 		for(index = 0; index < BME280_TRIM_PARAMETER_BYTES; index++) buffer[index] = 0;
 		buffer[0] = BME280_THIRD_TRIM_PARAMETER;
-		to_return = bme280_read(address, buffer, 7);
+		to_return = bme280_read(params_ptr, buffer, 7);
 		if (to_return != RPi_Success) break;  //No need to continue just return the failure
 		
 		index = 0;
@@ -342,23 +344,23 @@ Error_Returns bme280_init(uint32_t id, uint32_t address)
 		
 		buffer[0] = BME280_CTRL_MEASURE_REGISTER;
 		buffer[1] = BME280_SLEEP_MODE; //Need to set up config in sleep mode
-		to_return = bme280_write(address, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
+		to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
 		if (to_return != RPi_Success) break; //Don't continue just return
 
 		buffer[0] = BME280_CTRL_CONFIG_REGISTER;
 		buffer[1] = BME280_NO_IIR_16_500MS_STANDBY; //4 wire SPI, IIR 16, .5 ms standby time
-		to_return = bme280_write(address, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
+		to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
 		if (to_return != RPi_Success) break; //Don't continue just return
 
 		buffer[0] = BME280_CTRL_HUMIDITY_REGISTER;
 		buffer[1] = BME280_HUMIDITY_OFF;  //No humidity measurements;
-		to_return = bme280_write(address, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
+		to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
 		if (to_return != RPi_Success) break; //Don't continue just return
 
 		buffer[0] = BME280_CTRL_MEASURE_REGISTER;
 		//Pressure oversample x16, temp oversample x2, normal mode
 		buffer[1] = BME280_PRESS1X_TEMP_1X;
-		to_return = bme280_write(address, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
+		to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
 		if (to_return != RPi_Success) break; //Don't continue just return
 
 		pressure_temperature_xlsb_mask = BME280_IIR_ENABLED_MASK;
@@ -373,12 +375,14 @@ Error_Returns bme280_init(uint32_t id, uint32_t address)
 Error_Returns bme280_reset(uint32_t id)
 {
 	Error_Returns to_return = RPi_NotInitialized;
+	Compensation_Parameters *params_ptr = &bme280_compensation_params[id];
+	
 	unsigned char buffer[BME280_CTRL_REGISTER_WRITE_SIZE];
 	buffer[0] = BME280_CHIP_RESET_REGISTER;
 	buffer[1] = BME280_CHIP_RESET_WORD;
 	if (bme280_ready)
 	{
-		to_return = bme280_write(bme280_compensation_params[id].address, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
+		to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
 		sleep_ms(TIME_DELAY);  //Delay to allow reset
 	}
 	return to_return;
@@ -387,12 +391,14 @@ Error_Returns bme280_reset(uint32_t id)
 Error_Returns bme280_get_current_pressure(uint32_t id, uint32_t *pressure_ptr)
 {
 	Error_Returns to_return = RPi_Success;
+	Compensation_Parameters *params_ptr = &bme280_compensation_params[id];
+	
 	BME280_S32_t adc_P = 0;
 	BME280_S32_t adc_T = 0;
 
 	do
 	{
-		to_return = bme280_read_data(bme280_compensation_params[id].address, &adc_T, &adc_P);
+		to_return = bme280_read_data(params_ptr, &adc_T, &adc_P);
 		if (to_return != RPi_Success) break;  //No need to continue, just return the error
 		compensate_temperature(id, adc_T);	
 		*pressure_ptr = compensate_pressure(id, adc_P);		

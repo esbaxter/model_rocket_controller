@@ -25,16 +25,19 @@ and barometric pressure chips.
 */
 
 #pragma once
+#include "hardware/i2c.h"
+
 #include "common.h"
 
 #define BAROMETER_NUMBER_SUPPORTED_DEVICES 2
 
-/*  Initializes a barometer with the given address, if the maximum number of barometers
-	are exceeded or the MEMS barometer chip fails to initialize returns RPi_NotInitialized,
-	otherwise RPi_Success is returned along with a valid ID.
+/*  Initializes a barometer with the given address on the specified I2C bus, 
+	if the maximum number of  are exceeded or the MEMS barometer chip fails 
+	to initialize returns RPi_NotInitialized, otherwise RPi_Success is returned 
+	along with a valid ID.
 */
 	
-Error_Returns barometer_init(uint32_t *id, uint32_t address);
+Error_Returns barometer_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address);
 
 Error_Returns barometer_reset(uint32_t id);
 

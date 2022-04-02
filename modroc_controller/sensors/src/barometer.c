@@ -30,7 +30,7 @@ and barometric pressure chips.
 
 typedef struct Barometer_Interface_Struct
 {
-Error_Returns (*chip_init)(uint32_t id, uint32_t address);
+Error_Returns (*chip_init)(uint32_t id, i2c_inst_t *i2c, uint32_t address);
 Error_Returns (*chip_reset)(uint32_t id);
 Error_Returns (*chip_get_current_pressure)(uint32_t id, uint32_t *pressure_ptr);
 uint32_t address;
@@ -45,7 +45,7 @@ static Barometer_Interface barometer_chip[BAROMETER_NUMBER_SUPPORTED_DEVICES];
    are attached or could be a compile time assignment if all attached 
    barometers are of the same type.
 */
-Error_Returns barometer_init(uint32_t *id, uint32_t address)
+Error_Returns barometer_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address)
 {
 	Error_Returns to_return = RPi_NotInitialized;
 	do
@@ -58,7 +58,7 @@ Error_Returns barometer_init(uint32_t *id, uint32_t address)
 		barometer_chip[number_barometers_initialized].chip_reset = bme280_reset;
 		barometer_chip[number_barometers_initialized].chip_get_current_pressure = bme280_get_current_pressure;
 
-		to_return = barometer_chip[number_barometers_initialized].chip_init(number_barometers_initialized, address);
+		to_return = barometer_chip[number_barometers_initialized].chip_init(number_barometers_initialized, i2c, address);
 
 		/* If the chip initialization isn't successfull then there is no
 		   need to bother the client with the details, just return that
