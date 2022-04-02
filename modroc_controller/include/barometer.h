@@ -27,22 +27,15 @@ and barometric pressure chips.
 #pragma once
 #include "common.h"
 
-#define NUMBER_SUPPORTED_DEVICES 2
+#define BAROMETER_NUMBER_SUPPORTED_DEVICES 2
 
-typedef enum {
-	barometer_temp_pressure_humidity,
-	barometer_altitude_mode,
-	barometer_kalman_filter_mode
-} Barometer_mode;
-
-Error_Returns barometer_init(uint32_t id, Barometer_mode mode);
+/*  Initializes a barometer with the given address, if the maximum number of barometers
+	are exceeded or the MEMS barometer chip fails to initialize returns RPi_NotInitialized,
+	otherwise RPi_Success is returned along with a valid ID.
+*/
+	
+Error_Returns barometer_init(uint32_t *id, uint32_t address);
 
 Error_Returns barometer_reset(uint32_t id);
 
-Error_Returns barometer_print_compensated_values(uint32_t id);
-
 Error_Returns barometer_get_current_pressure(uint32_t id, double *pressure_ptr);
-
-Error_Returns barometer_get_current_temperature(uint32_t id, double *temperature_ptr);
-
-Error_Returns barometer_get_current_temperature_pressure(uint32_t id, double *temperature_ptr, double *pressure_ptr);

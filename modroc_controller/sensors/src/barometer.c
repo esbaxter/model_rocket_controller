@@ -26,39 +26,51 @@ and barometric pressure chips.
 
 #include "barometer.h"
 #include "bme280.h"
+#include "pico/stdlib.h"
 
 typedef struct Barometer_Interface_Struct
 {
-Error_Returns (*chip_init)(uint32_t id, Barometer_mode mode);
+Error_Returns (*chip_init)(uint32_t id, uint32_t address);
 Error_Returns (*chip_reset)(uint32_t id);
-Error_Returns (*chip_print_compensated_values)(uint32_t id);
 Error_Returns (*chip_get_current_pressure)(uint32_t id, double *pressure_ptr);
-Error_Returns (*chip_get_current_temperature)(uint32_t id, double *temperature_ptr);
-Error_Returns (*chip_get_current_temperature_pressure)(uint32_t id, double *temperature_ptr, double *pressure_ptr);
+uint32_t address;
 } Barometer_Interface;
 
-static uint32_t barometer_initialized = 0;
+static uint32_t number_barometers_initialized = 0;
 
-static Barometer_Interface barometer_chip[NUMBER_SUPPORTED_DEVICES];
+static Barometer_Interface barometer_chip[BAROMETER_NUMBER_SUPPORTED_DEVICES];
 
-Error_Returns barometer_init(uint32_t id, Barometer_mode mode)
+/* Current implementation only supports the BME_280 barometer chip, this could
+   either become a runtime initialization if a variety of different barometers
+   are attached or could be a compile time assignment if all attached 
+   barometers are of the same type.
+*/
+Error_Returns barometer_init(uint32_t *id, uint32_t address)
 {
 	Error_Returns to_return = RPi_NotInitialized;
 	do
 	{
-		if (id >= NUMBER_SUPPORTED_DEVICES)
+		if (number_barometers_initialized >= BAROMETER_NUMBER_SUPPORTED_DEVICES)
 		{
-			to_return = RPi_InvalidParam;
 			break;
 		}
-		barometer_chip[id].chip_init = bme280_init;
-		barometer_chip[id].chip_reset = bme280_reset;
-		barometer_chip[id].chip_print_compensated_values = bme280_print_compensated_values;
-		barometer_chip[id].chip_get_current_pressure = bme280_get_current_pressure;
-		barometer_chip[id].chip_get_current_temperature = bme280_get_current_temperature;
-		barometer_chip[id].chip_get_current_temperature_pressure = bme280_get_current_temperature_pressure;
-		barometer_initialized = 1;
-		to_return = barometer_chip[id].chip_init(id, mode);
+		barometer_chip[number_barometers_initialized].chip_init = bme280_init;
+		barometer_chip[number_barometers_initialized].chip_reset = bme280_reset;
+		barometer_chip[number_barometers_initialized].chip_get_current_pressure = bme280_get_current_pressure;
+
+		to_return = barometer_chip[number_barometers_initialized].chip_init(number_barometers_initialized, address);
+
+		/* If the chip initialization isn't successfull then there is no
+		   need to bother the client with the details, just return that
+		   this barometer isn't initialized.
+		*/
+		if (to_return != RPi_Success)
+		{
+			to_return = RPi_NotInitialized;
+			break;
+		}
+		
+		*id = number_barometers_initialized++;
 	} while(0);
 	return to_return;
 }
@@ -66,53 +78,19 @@ Error_Returns barometer_init(uint32_t id, Barometer_mode mode)
 Error_Returns barometer_reset(uint32_t id)
 {
 	Error_Returns to_return = RPi_NotInitialized;
-	if (barometer_initialized && (id < NUMBER_SUPPORTED_DEVICES))
+	if (id < number_barometers_initialized)
 	{
 		to_return = barometer_chip[id].chip_reset(id);
 	}
 	return to_return;
 }
 
-Error_Returns barometer_print_compensated_values(uint32_t id)
-{
-	Error_Returns to_return = RPi_NotInitialized;
-	if (barometer_initialized && (id < NUMBER_SUPPORTED_DEVICES))
-	{
-		to_return = barometer_chip[id].chip_print_compensated_values(id);
-	}
-	return to_return;
-}
-
-
 Error_Returns barometer_get_current_pressure(uint32_t id, double *pressure_ptr)
 {
 	Error_Returns to_return = RPi_NotInitialized;
-	if (barometer_initialized && (id < NUMBER_SUPPORTED_DEVICES))
+	if (id < number_barometers_initialized)
 	{
 		to_return = barometer_chip[id].chip_get_current_pressure(id, pressure_ptr);
-	}
-	return to_return;
-}
-
-
-Error_Returns barometer_get_current_temperature(uint32_t id, double *temperature_ptr)
-{
-	Error_Returns to_return = RPi_NotInitialized;
-	if (barometer_initialized && (id < NUMBER_SUPPORTED_DEVICES))
-	{
-		to_return = barometer_chip[id].chip_get_current_temperature(id, temperature_ptr);
-	}
-	return to_return;
-}
-
-
-Error_Returns barometer_get_current_temperature_pressure(uint32_t id, double *temperature_ptr, double *pressure_ptr)
-{
-	Error_Returns to_return = RPi_NotInitialized;
-	if (barometer_initialized && (id < NUMBER_SUPPORTED_DEVICES))
-	{
-		to_return = barometer_chip[id].chip_get_current_temperature_pressure(id,
-			temperature_ptr, pressure_ptr);
 	}
 	return to_return;
 }

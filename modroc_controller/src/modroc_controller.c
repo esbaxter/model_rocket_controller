@@ -27,51 +27,51 @@ File:  mod_roc.c
 #include "pico/binary_info.h"
 
 #include "common.h"
-#include "barometer.h"
-
-#define DESIRED_I2C_BAUD_RATE 100 * 1000
-
-uint init_i2c_bus()
-{
-    uint baud_rate = i2c_init(i2c_default, DESIRED_I2C_BAUD_RATE);
-    gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
-    gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
-	//Set pullups to pull the I2C bus high when idle
-    gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
-    gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
-	return baud_rate;
-}
+#include "hardware_platform.h"
+#include "altimeter.h"
 
 int main() {
 	Error_Returns status = RPi_Success;
     stdio_init_all();
 	sleep_ms(500); //Let the USB bus get set up
-
-    
+  
 	printf("Modroc 1.0 here!\n");
+	uint32_t counter = 0;
 	
 	do
 	{
-		printf("I2C baud rate: %u\n", init_i2c_bus());
-		// configure BME280
-		status = barometer_init(0, barometer_kalman_filter_mode);
+		status = configure_hardware_platform();
 		if (status != RPi_Success)
 		{
-			printf("barometer_init failed: %u\n", status);
+			printf("configure_hardware_platform failed: %u\n", status);
+			sleep_ms(500); //Let the message get sent...
 			break;
 		}
-
+		
+		if (status != RPi_Success)
+		{
+			printf("altimeter_initialize failed: %u\n", status);
+			sleep_ms(500); //Let the message get sent...
+			break;
+		}
+		
 		while (1) 
 		{
-			status = barometer_print_compensated_values(0);
+			// poll every 5 ms
+			sleep_ms(5);
+			counter++;
+			status = altimeter_update_altitude();
 			if (status != RPi_Success)
 			{
-				printf("barometer_print_compensated_values failed: %u\n", status);
+				printf("altimeter_update_altitude failed: %u\n", status);
+				sleep_ms(500); //Let the message get sent...
 				break;
-			}	
-			printf("\n");
-			// poll every 500ms
-			sleep_ms(500);
+			}
+			
+			if ((counter % 200) == 0)
+			{			
+				printf("delta: %f\n", altimeter_get_delta());
+			}
 		}
 	} while(0);
     return 0;

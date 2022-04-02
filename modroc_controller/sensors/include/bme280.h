@@ -34,14 +34,8 @@ typedef int BME280_S32_t;
 typedef unsigned int BME280_U32_t;
 typedef long long signed int BME280_S64_t;
 
-Error_Returns bme280_init(uint32_t id, Barometer_mode mode);
+Error_Returns bme280_init(uint32_t id, uint32_t address);
 
 Error_Returns bme280_reset(uint32_t id);
 
-Error_Returns bme280_print_compensated_values(uint32_t id);
-
 Error_Returns bme280_get_current_pressure(uint32_t id, double *pressure_ptr);
-
-Error_Returns bme280_get_current_temperature(uint32_t id, double *temperature_ptr);
-
-Error_Returns bme280_get_current_temperature_pressure(uint32_t id, double *temperature_ptr, double *pressure_ptr);
