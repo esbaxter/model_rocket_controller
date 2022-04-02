@@ -43,11 +43,6 @@ the calculated altitude
 #define MAGIC_EXPONENT				0.1902225603956629  //Basically 1/5.22
 #define MAGIC_MULTIPLIER			44330
 
-#define ALTITUDE_MEASUREMENT_ERROR		1.0
-#define ALTITUDE_INITIAL_ESTIMATE_ERROR	1.0
-#define ALTITUDE_INITIAL_KALMAN_GAIN	1.0
-#define ALTITUDE_Q_FACTOR				0.01
-
 #define STANDARD_MSL_HPASCALS		101325.0
 
 #define ALTITUDE_WAIT_TIME 		10 //In milliseconds
@@ -63,7 +58,6 @@ typedef struct Kalman_Data {
 
 static double base_pressure[BAROMETER_NUMBER_SUPPORTED_DEVICES];
 static Kalman_Filter_Data kalman_filter_data[BAROMETER_NUMBER_SUPPORTED_DEVICES];
-static Kalman_Filter_Data current_altitude;
 
 static uint32_t barometer_count = 0;
 static uint32_t barometer_ids[BAROMETER_NUMBER_SUPPORTED_DEVICES];
@@ -76,16 +70,6 @@ static void reset_kalman_filter_pressure_data(int32_t id)
 	kalman_filter_data[id].estimate = STANDARD_MSL_HPASCALS;
 	kalman_filter_data[id].kalman_gain = MEMS_BAROMETER_INITIAL_KALMAN_GAIN;
 	kalman_filter_data[id].q_factor = MEMS_BAROMETER_Q_FACTOR;
-}
-
-static void reset_altitude_filter_data()
-{
-	current_altitude.measurement_error = ALTITUDE_MEASUREMENT_ERROR;
-	current_altitude.estimate_error = ALTITUDE_INITIAL_ESTIMATE_ERROR;
-	current_altitude.last_estimate = 0; //We assume we haven't moved from the point the base pressure is set
-	current_altitude.estimate = 0; //We assume we haven't moved from the point the base pressure is set
-	current_altitude.kalman_gain = ALTITUDE_INITIAL_KALMAN_GAIN;
-	current_altitude.q_factor = ALTITUDE_Q_FACTOR;
 }
 
 // update_estimate is based on information available at kalmanfilter.net
@@ -111,13 +95,15 @@ static Error_Returns get_filtered_readings()
 			uint32_t raw_pressure;
 
 			to_return = barometer_get_current_pressure(barometer_ids[count], &raw_pressure);
-			raw_pressure /= 10;
+					
 			if (to_return != RPi_Success)
 			{
 				printf("altitude_package: get_filtered_readings failed: %u\n", to_return);
 				break;
 			}
-			//Need to convert raw_pressure from Q24.8 to double
+			
+			//Returned value is xxxxxxx.x 
+			raw_pressure /= 10;
 			update_estimate((double)(raw_pressure/10), &kalman_filter_data[barometer_ids[count]]);
 		}
 	} while(0);
@@ -202,7 +188,6 @@ Error_Returns altimeter_reset()
 			break;
 		}
 
-		reset_altitude_filter_data();
 	} while(0);
 
 	return to_return;
@@ -218,14 +203,13 @@ Error_Returns altimeter_update_altitude()
 
 double altimeter_get_delta()
 {
-	for (uint32_t count = 0; count < barometer_count; count++)
-	{
-		double altitude;
+	double altitude = 0.0;
 
-		altitude = convert_pressure_to_altitude(base_pressure[barometer_ids[count]],
+	for (uint32_t count = 0; count < barometer_count; count++)
+	{		
+		altitude += convert_pressure_to_altitude(base_pressure[barometer_ids[count]],
 				kalman_filter_data[barometer_ids[count]].estimate);
-		update_estimate(altitude, &current_altitude);
 	}
 
-	return current_altitude.estimate;
+	return altitude/barometer_count;
 }
