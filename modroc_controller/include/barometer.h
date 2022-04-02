@@ -38,4 +38,4 @@ Error_Returns barometer_init(uint32_t *id, uint32_t address);
 
 Error_Returns barometer_reset(uint32_t id);
 
-Error_Returns barometer_get_current_pressure(uint32_t id, double *pressure_ptr);
+Error_Returns barometer_get_current_pressure(uint32_t id, uint32_t *pressure_ptr);

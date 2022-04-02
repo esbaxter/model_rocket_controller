@@ -131,45 +131,79 @@ static Error_Returns bme280_read(uint32_t address, unsigned char *buffer, unsign
 }
 
 //Taken straight from the Bosch manual.
-static double compensateTemperature(uint32_t id, int32_t adc_T)
+static int32_t compensate_temperature(uint32_t id, uint32_t uncompensated_temperature)
 {
-  double v_x1_u32;
-  double v_x2_u32;
-  double temperature;
-  
-  Compensation_Parameters *params_ptr = &bme280_compensation_params[id];
-  
-  v_x1_u32  = (((double)adc_T) / 16384.0 - ((double)params_ptr->dig_T1) / 1024.0) * ((double)params_ptr->dig_T2);
-  v_x2_u32  = ((((double)adc_T) / 131072.0 - ((double)params_ptr->dig_T1) / 8192.0) * (((double)adc_T) / 131072.0 - ((double)params_ptr->dig_T1) / 8192.0)) * ((double)params_ptr->dig_T3);
-  params_ptr->t_fine = (BME280_S32_t)(v_x1_u32 + v_x2_u32);
-  temperature  = (v_x1_u32 + v_x2_u32) / 5120.0;
-  return temperature;
+    int32_t var1;
+    int32_t var2;
+    int32_t temperature;
+    int32_t temperature_min = -4000;
+    int32_t temperature_max = 8500;
+	Compensation_Parameters *calib_data = &bme280_compensation_params[id];
+
+    var1 = (int32_t)((uncompensated_temperature / 8) - ((int32_t)calib_data->dig_T1 * 2));
+    var1 = (var1 * ((int32_t)calib_data->dig_T2)) / 2048;
+    var2 = (int32_t)((uncompensated_temperature / 16) - ((int32_t)calib_data->dig_T1));
+    var2 = (((var2 * var2) / 4096) * ((int32_t)calib_data->dig_T3)) / 16384;
+    calib_data->t_fine = var1 + var2;
+    temperature = (calib_data->t_fine * 5 + 128) / 256;
+
+    if (temperature < temperature_min)
+    {
+        temperature = temperature_min;
+    }
+    else if (temperature > temperature_max)
+    {
+        temperature = temperature_max;
+    }
+
+    return temperature;
 }
 
-//Taken straight from the Bosch manual.
-static double compensatePressure(uint32_t id, int32_t adc_P)
+// Straight from the Bosch manual.
+static uint32_t compensate_pressure(uint32_t id, int32_t adc_P)
 {
-  double v_x1_u32;
-  double v_x2_u32;
-  double pressure;
-  
-  Compensation_Parameters *params_ptr = &bme280_compensation_params[id];
-  
-  v_x1_u32 = ((double)params_ptr->t_fine / 2.0) - 64000.0;
-  v_x2_u32 = v_x1_u32 * v_x1_u32 * ((double)params_ptr->dig_P6) / 32768.0;
-  v_x2_u32 = v_x2_u32 + v_x1_u32 * ((double)params_ptr->dig_P5) * 2.0;
-  v_x2_u32 = (v_x2_u32 / 4.0) + (((double)params_ptr->dig_P4) * 65536.0);
-  v_x1_u32 = (((double)params_ptr->dig_P3) * v_x1_u32 * v_x1_u32 / 524288.0 + ((double)params_ptr->dig_P2) * v_x1_u32) / 524288.0;
-  v_x1_u32 = (1.0 + v_x1_u32 / 32768.0) * ((double)params_ptr->dig_P1);
-  pressure = 1048576.0 - (double)adc_P;
-  // Avoid exception caused by division by zero.
-  if (v_x1_u32 != 0) pressure = (pressure - (v_x2_u32 / 4096.0)) * 6250.0 / v_x1_u32;
-  else return 0;
-  v_x1_u32 = ((double)params_ptr->dig_P9) * pressure * pressure / 2147483648.0;
-  v_x2_u32 = pressure * ((double)params_ptr->dig_P8) / 32768.0;
-  pressure = pressure + (v_x1_u32 + v_x2_u32 + ((double)params_ptr->dig_P7)) / 16.0;
-  
-  return pressure;
+    int64_t var1;
+    int64_t var2;
+    int64_t var3;
+    int64_t var4;
+    uint32_t pressure;
+    uint32_t pressure_min = 3000000;
+    uint32_t pressure_max = 11000000;
+	Compensation_Parameters *calib_data = &bme280_compensation_params[id];
+	
+    var1 = ((int64_t)calib_data->t_fine) - 128000;
+    var2 = var1 * var1 * (int64_t)calib_data->dig_P6;
+    var2 = var2 + ((var1 * (int64_t)calib_data->dig_P5) * 131072);
+    var2 = var2 + (((int64_t)calib_data->dig_P4) * 34359738368);
+    var1 = ((var1 * var1 * (int64_t)calib_data->dig_P3) / 256) + ((var1 * ((int64_t)calib_data->dig_P2) * 4096));
+    var3 = ((int64_t)1) * 140737488355328;
+    var1 = (var3 + var1) * ((int64_t)calib_data->dig_P1) / 8589934592;
+
+    /* To avoid divide by zero exception */
+    if (var1 != 0)
+    {
+        var4 = 1048576 - adc_P;
+        var4 = (((var4 * INT64_C(2147483648)) - var2) * 3125) / var1;
+        var1 = (((int64_t)calib_data->dig_P9) * (var4 / 8192) * (var4 / 8192)) / 33554432;
+        var2 = (((int64_t)calib_data->dig_P8) * var4) / 524288;
+        var4 = ((var4 + var1 + var2) / 256) + (((int64_t)calib_data->dig_P7) * 16);
+        pressure = (uint32_t)(((var4 / 2) * 100) / 128);
+
+        if (pressure < pressure_min)
+        {
+            pressure = pressure_min;
+        }
+        else if (pressure > pressure_max)
+        {
+            pressure = pressure_max;
+        }
+    }
+    else
+    {
+        pressure = pressure_min;
+    }
+
+    return pressure;
 }
 
 static void bme280_extract_long_data(unsigned char *buffer, BME280_S32_t *data_ptr)
@@ -350,7 +384,7 @@ Error_Returns bme280_reset(uint32_t id)
 	return to_return;
 }
 
-Error_Returns bme280_get_current_pressure(uint32_t id, double *pressure_ptr)
+Error_Returns bme280_get_current_pressure(uint32_t id, uint32_t *pressure_ptr)
 {
 	Error_Returns to_return = RPi_Success;
 	BME280_S32_t adc_P = 0;
@@ -360,8 +394,8 @@ Error_Returns bme280_get_current_pressure(uint32_t id, double *pressure_ptr)
 	{
 		to_return = bme280_read_data(bme280_compensation_params[id].address, &adc_T, &adc_P);
 		if (to_return != RPi_Success) break;  //No need to continue, just return the error
-		compensateTemperature(id, adc_T);	
-		*pressure_ptr = compensatePressure(id, adc_P);		
+		compensate_temperature(id, adc_T);	
+		*pressure_ptr = compensate_pressure(id, adc_P);		
 	}  while(0);
 	return to_return;
 }

@@ -32,7 +32,7 @@ typedef struct Barometer_Interface_Struct
 {
 Error_Returns (*chip_init)(uint32_t id, uint32_t address);
 Error_Returns (*chip_reset)(uint32_t id);
-Error_Returns (*chip_get_current_pressure)(uint32_t id, double *pressure_ptr);
+Error_Returns (*chip_get_current_pressure)(uint32_t id, uint32_t *pressure_ptr);
 uint32_t address;
 } Barometer_Interface;
 
@@ -85,7 +85,7 @@ Error_Returns barometer_reset(uint32_t id)
 	return to_return;
 }
 
-Error_Returns barometer_get_current_pressure(uint32_t id, double *pressure_ptr)
+Error_Returns barometer_get_current_pressure(uint32_t id, uint32_t *pressure_ptr)
 {
 	Error_Returns to_return = RPi_NotInitialized;
 	if (id < number_barometers_initialized)

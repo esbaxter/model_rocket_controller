@@ -103,19 +103,22 @@ static void update_estimate(double measure, Kalman_Filter_Data *filter_data)
 static Error_Returns get_filtered_readings()
 {
 	Error_Returns to_return = RPi_Success;
+
 	do
 	{
 		for(uint32_t count = 0; count < barometer_count; count++)
 		{
-			double raw_pressure;
+			uint32_t raw_pressure;
 
 			to_return = barometer_get_current_pressure(barometer_ids[count], &raw_pressure);
+			raw_pressure /= 10;
 			if (to_return != RPi_Success)
 			{
 				printf("altitude_package: get_filtered_readings failed: %u\n", to_return);
 				break;
 			}
-			update_estimate(raw_pressure, &kalman_filter_data[barometer_ids[count]]);
+			//Need to convert raw_pressure from Q24.8 to double
+			update_estimate((double)(raw_pressure/10), &kalman_filter_data[barometer_ids[count]]);
 		}
 	} while(0);
 	return to_return;
@@ -212,6 +215,7 @@ Error_Returns altimeter_update_altitude()
 
 //Returns the current difference between the base altitude that is obtained at start up
 //or after a call to altitude_reset.
+
 double altimeter_get_delta()
 {
 	for (uint32_t count = 0; count < barometer_count; count++)
