@@ -17,46 +17,58 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTIO
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-File:  mod_roc.c
+File:  input_task.c
 
 */
 
+
 #include <stdio.h>
 #include "pico/stdlib.h"
-#include "hardware/i2c.h"
-#include "pico/binary_info.h"
 
 #include "common.h"
-#include "hardware_platform.h"
 #include "intertask_message.h"
-#include "output_task.h"
 #include "input_task.h"
 #include "altimeter.h"
 
-int main() {
-	Error_Returns status = RPi_Success;
-    stdio_init_all();
-	sleep_ms(500); //Let the USB bus get set up
-  
-	printf("Modroc 1.0 here!\n");
-	
+#define LOG_FLIGHT_PARAMETERS_TIMER_MS 1000
+
+//Out here for safety's sake
+repeating_timer_t timer;
+
+bool log_flight_parameters(repeating_timer_t *rt) 
+{
+	Intertask_Message_t entry;
+	entry.message_type = message_log_parameters;
+	entry.message.log_parameters.time_stamp = GET_TIME_STAMP;
+	entry.message.log_parameters.altitude = altimeter_get_delta();
+	entry.message.log_parameters.z_acceleration = 0;
+	entry.message.log_parameters.z_velocity = 0;
+	queue_add_blocking(&output_task_queue, &entry);
+
+	return true; // keep repeating	
+}
+
+void input_task() {
+
 	do
 	{
-		intertask_message_init();		
-		status = configure_hardware_platform();
-		if (status != RPi_Success)
-		{
-			printf("configure_hardware_platform failed: %u\n", status);
-			sleep_ms(500); //Let the message get sent...
-			break;
+		Error_Returns status = RPi_Success;
+
+		if (!add_repeating_timer_ms(LOG_FLIGHT_PARAMETERS_TIMER_MS, log_flight_parameters, NULL, &timer)) {
+			intertask_message_send_log("input_task(): Failed to add timer\n");
+			break;;
 		}
 		
-		//Launch the task to handle logging, etc.
-		multicore_launch_core1(output_task);
-		//Dive into the code that reads inputs and does
-		//the calculations.  If it returns something bad
-		//happened.
-		input_task();		
+		while (1) 
+		{
+			status = altimeter_update_altitude();
+			if (status != RPi_Success)
+			{
+				intertask_message_send_log("input_task(): altimeter_update_altitude failed: %u\n", status);
+				sleep_ms(500); //Let the message get sent...
+				break;
+			}
+		}
 	} while(0);
-    return 0;
+
 }

@@ -17,46 +17,30 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTIO
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-File:  mod_roc.c
+File:  intertask_message.c
 
 */
 
-#include <stdio.h>
-#include "pico/stdlib.h"
-#include "hardware/i2c.h"
-#include "pico/binary_info.h"
-
 #include "common.h"
-#include "hardware_platform.h"
 #include "intertask_message.h"
-#include "output_task.h"
-#include "input_task.h"
-#include "altimeter.h"
 
-int main() {
-	Error_Returns status = RPi_Success;
-    stdio_init_all();
-	sleep_ms(500); //Let the USB bus get set up
-  
-	printf("Modroc 1.0 here!\n");
+//Publicly shared between input task and output task.
+queue_t output_task_queue;
+
+void intertask_message_init()
+{
+	queue_init(&output_task_queue, sizeof(Intertask_Message_t), MAX_NUMBER_MESSAGES);
+}
+
+void intertask_message_send_log(char *format, ...)
+{
+	Intertask_Message_t entry;
+	va_list args;
+	va_start (args, format);
+	vsprintf (entry.message.log_message.log_message, format, args);	
 	
-	do
-	{
-		intertask_message_init();		
-		status = configure_hardware_platform();
-		if (status != RPi_Success)
-		{
-			printf("configure_hardware_platform failed: %u\n", status);
-			sleep_ms(500); //Let the message get sent...
-			break;
-		}
-		
-		//Launch the task to handle logging, etc.
-		multicore_launch_core1(output_task);
-		//Dive into the code that reads inputs and does
-		//the calculations.  If it returns something bad
-		//happened.
-		input_task();		
-	} while(0);
-    return 0;
+	entry.message_type = message_log_message;
+	entry.message.log_parameters.time_stamp = GET_TIME_STAMP;
+
+	queue_add_blocking(&output_task_queue, &entry);
 }

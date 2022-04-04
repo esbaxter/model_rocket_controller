@@ -8,7 +8,10 @@ if (TARGET tinyusb_device)
 	include_directories(../include)
     
 	# What else do we need
-    target_link_libraries(modroc_controller pico_stdlib hardware_i2c sensors)
+    target_link_libraries(modroc_controller 
+		pico_stdlib 
+		pico_multicore
+		hardware_i2c sensors)
 
     # enable usb output, disable uart output
     pico_enable_stdio_usb(modroc_controller 1)
