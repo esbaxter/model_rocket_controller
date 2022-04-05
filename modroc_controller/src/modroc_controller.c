@@ -22,16 +22,12 @@ File:  mod_roc.c
 */
 
 #include <stdio.h>
-#include "pico/stdlib.h"
-#include "hardware/i2c.h"
-#include "pico/binary_info.h"
 
 #include "common.h"
 #include "hardware_platform.h"
 #include "message.h"
 #include "output_task.h"
 #include "flight_monitor.h"
-#include "altimeter.h"
 
 int main() {
 	Error_Returns status = RPi_Success;
