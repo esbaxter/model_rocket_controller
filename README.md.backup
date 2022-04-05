@@ -2,15 +2,13 @@ Model Rocket Data Collector and Controller
 
 This repository is the ongoing build of model rocket data collection system and (hopefully) controller.  Here are the requirements:
 
-1) Record altitude above ground on a one second interval, retrievable after landing.
-2) Record Z-axis (vertical) velocity on a one second interval, retrievable after landing.
-3) Record Z-axis acceleration on a one second interval, retrievable after landing.
-4) Re up to 10 minutes of data starting at liftoff and ending
+1) On ascent, log altitude above ground, Z-axis (vertical) velocity and Z-axis acceleration.  Log interval should be configurable between 50 milliseconds and 1000 milliseconds.  Log should be retrievable after landing.
+2) On descent, log altitude above ground and temperature on a one second interval.  Log should be retrievable after landing.
+4) Record up to 10 minutes of data starting at liftoff and ending at touchdown on a non-volatile media.
 
 
 Secondary requirements:
-1) Be capable of recording X-axis and Y-axis velocity on a one second interval, retrievable after landing
-2) Be capable of recording X-axis and Y-axis acceleration on a one second interval, retrievable after landing
+1) On ascent, log X-axis and Y-axis acceleration and X-axis and Y-axis velocity.  Log interval should be configurable between 50 milliseconds and 1000 milliseconds.  Log should be retrievable after landing.
 3) Be capable of deploying a recovery system, either as a single deploy or a dual deploy at a configurable altitude.
 4) Be capable of steering the rocket assembly back to the launch pad.
 5) Be capable of active airframe guidance during the ascent phase.

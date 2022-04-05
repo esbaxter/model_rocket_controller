@@ -3,7 +3,8 @@ Model Rocket Data Collector and Controller
 This repository is the ongoing build of model rocket data collection system and (hopefully) controller.  Here are the requirements:
 
 1) On ascent, log altitude above ground, Z-axis (vertical) velocity and Z-axis acceleration.  Log interval should be configurable between 50 milliseconds and 1000 milliseconds.  Log should be retrievable after landing.
-2) On descent, log altitude above ground and temperature on a one second interval.  Log should be retrievable after landing.
+2) At apogee log alititude above ground and temperature.
+3) On descent, log altitude above ground and temperature on a one second interval.  Log should be retrievable after landing.
 4) Record up to 10 minutes of data starting at liftoff and ending at touchdown on a non-volatile media.
 
 
