@@ -37,17 +37,22 @@ Definitions of messages to passed between the input task and the output task.
 #define GET_TIME_STAMP to_ms_since_boot(get_absolute_time())
 
 typedef enum {
-	message_log_parameters,
-	message_log_message
-} Message_Types;
+	message_log_ascent_parameters,
+	message_log_descent_parameters
+} Param_Message_Types;
 
-typedef struct Log_Parameters_S
+typedef struct Log_Ascent_Parameters_S
 {
-	uint32_t time_stamp;
 	double altitude;  //In meters
 	uint16_t z_acceleration;  // In meters/second2
 	uint16_t z_velocity;  //In meters/second
-} Log_Parameters_t;
+} Log_Ascent_Parameters_t;
+
+typedef struct Log_Descent_Parameters_S
+{
+	double altitude;  //In meters
+	double temperature;  // In degrees C
+} Log_Descent_Parameters_t;
 
 typedef struct Log_Message_S
 {
@@ -56,19 +61,25 @@ typedef struct Log_Message_S
 } Log_Message_t;
 
 typedef union {
-	Log_Parameters_t log_parameters;
-	Log_Message_t log_message;
-} Messages_t;
+	Log_Ascent_Parameters_t log_ascent_parameters;
+	Log_Descent_Parameters_t log_descent_parameters;
+} Param_Messages_t;
 
 typedef struct Intertask_Message_S
 {
-	Message_Types message_type;
-	Messages_t message;
-	
-} Intertask_Message_t;
+	Param_Message_Types message_type;
+	uint32_t time_stamp;
+	Param_Messages_t message;
+} Intertask_Param_Message_t;
 
-extern queue_t output_task_queue;
+void message_init();
 
-void intertask_message_init();
+void message_log_ascent_params(Log_Ascent_Parameters_t *log_ascent_parameters);
 
-void intertask_message_send_log(char *format, ...);
+void message_log_descent_params(Log_Descent_Parameters_t *log_descent_parameters);
+
+bool message_log_get_params(Intertask_Param_Message_t *log_params);
+
+void message_send_log(char *format, ...);
+
+bool message_get_log(Log_Message_t *log_message);

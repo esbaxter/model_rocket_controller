@@ -28,7 +28,7 @@ File:  mod_roc.c
 
 #include "common.h"
 #include "hardware_platform.h"
-#include "intertask_message.h"
+#include "message.h"
 #include "output_task.h"
 #include "input_task.h"
 #include "altimeter.h"
@@ -42,7 +42,7 @@ int main() {
 	
 	do
 	{
-		intertask_message_init();		
+		message_init();		
 		status = configure_hardware_platform();
 		if (status != RPi_Success)
 		{

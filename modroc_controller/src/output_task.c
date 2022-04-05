@@ -33,24 +33,32 @@ void output_task() {
 	{
 		while (1) 
 		{
-			Intertask_Message_t entry;
+			Intertask_Param_Message_t param_entry;
+			Log_Message_t log_entry;
 
-			queue_remove_blocking(&output_task_queue, &entry);
-			switch (entry.message_type)
+			if (message_log_get_params(&param_entry))
 			{
-				case message_log_parameters:
-					printf("%u: altitude %f z accel: %hu z velocity %hu\n", 
-					   entry.message.log_parameters.time_stamp, entry.message.log_parameters.altitude, entry.message.log_parameters.z_acceleration,
-					   entry.message.log_parameters.z_velocity);				
+				switch (param_entry.message_type)
+				{
+					case message_log_ascent_parameters:
+						printf("%u: altitude %f z accel: %hu z velocity %hu\n", 
+						   param_entry.time_stamp, param_entry.message.log_ascent_parameters.altitude, param_entry.message.log_ascent_parameters.z_acceleration,
+						   param_entry.message.log_ascent_parameters.z_velocity);				
+						break;
+					
+					case message_log_descent_parameters:
+						printf("%u: altitude %f temperature: %f\n", 
+						   param_entry.time_stamp, param_entry.message.log_descent_parameters.altitude, param_entry.message.log_descent_parameters.temperature);
+					
+					default:
+						message_send_log("output_task:  Rx'd uknown message %u\n", param_entry.message_type);
 					break;
-				
-				case message_log_message:
-					printf("%u: %s", entry.message.log_message.time_stamp, entry.message.log_message.log_message);
-				break;
-				
-				default:
-					printf("output_task:  Rx'd uknown message %u\n", entry.message_type);
-				break;
+				}
+			}
+			
+			if (message_get_log(&log_entry))
+			{
+				printf("%u: %s/n", log_entry.time_stamp, log_entry.log_message);
 			}
 		}
 	} while(0);

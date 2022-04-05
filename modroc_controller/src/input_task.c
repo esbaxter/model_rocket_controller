@@ -26,7 +26,6 @@ File:  input_task.c
 #include "pico/stdlib.h"
 
 #include "common.h"
-#include "intertask_message.h"
 #include "input_task.h"
 #include "altimeter.h"
 
@@ -37,13 +36,11 @@ repeating_timer_t timer;
 
 bool log_flight_parameters(repeating_timer_t *rt) 
 {
-	Intertask_Message_t entry;
-	entry.message_type = message_log_parameters;
-	entry.message.log_parameters.time_stamp = GET_TIME_STAMP;
-	entry.message.log_parameters.altitude = altimeter_get_delta();
-	entry.message.log_parameters.z_acceleration = 0;
-	entry.message.log_parameters.z_velocity = 0;
-	queue_add_blocking(&output_task_queue, &entry);
+	Log_Ascent_Parameters_t entry;
+	entry.altitude = altimeter_get_delta();
+	entry.z_acceleration = 0;
+	entry.z_velocity = 0;
+	message_log_ascent_params(&entry);
 
 	return true; // keep repeating	
 }
@@ -55,7 +52,7 @@ void input_task() {
 		Error_Returns status = RPi_Success;
 
 		if (!add_repeating_timer_ms(LOG_FLIGHT_PARAMETERS_TIMER_MS, log_flight_parameters, NULL, &timer)) {
-			intertask_message_send_log("input_task(): Failed to add timer\n");
+			message_send_log("input_task(): Failed to add timer\n");
 			break;;
 		}
 		
@@ -64,7 +61,7 @@ void input_task() {
 			status = altimeter_update_altitude();
 			if (status != RPi_Success)
 			{
-				intertask_message_send_log("input_task(): altimeter_update_altitude failed: %u\n", status);
+				message_send_log("input_task(): altimeter_update_altitude failed: %u\n", status);
 				sleep_ms(500); //Let the message get sent...
 				break;
 			}

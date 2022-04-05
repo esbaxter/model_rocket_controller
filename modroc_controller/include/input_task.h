@@ -30,6 +30,6 @@ accelerometer reading.
 #include "pico/multicore.h"
 
 #include "common.h"
-#include "intertask_message.h"
+#include "message.h"
 
 void input_task();

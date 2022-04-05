@@ -30,6 +30,6 @@ servo control and igniter control.
 #include "pico/multicore.h"
 
 #include "common.h"
-#include "intertask_message.h"
+#include "message.h"
 
 void output_task();
