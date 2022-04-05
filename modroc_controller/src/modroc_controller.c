@@ -30,7 +30,7 @@ File:  mod_roc.c
 #include "hardware_platform.h"
 #include "message.h"
 #include "output_task.h"
-#include "input_task.h"
+#include "flight_monitor.h"
 #include "altimeter.h"
 
 int main() {
@@ -56,7 +56,7 @@ int main() {
 		//Dive into the code that reads inputs and does
 		//the calculations.  If it returns something bad
 		//happened.
-		input_task();		
+		flight_monitor();		
 	} while(0);
     return 0;
 }
