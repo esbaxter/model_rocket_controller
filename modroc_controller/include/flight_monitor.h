@@ -32,4 +32,9 @@ accelerometer reading.
 #include "common.h"
 #include "message.h"
 
+//Basic loop to handle monitoring and control of the flight
+//only returns if something fails
 void flight_monitor();
+
+void flight_monitor_set_timer_intervals(int32_t ascent_timer_interval_ms,
+	int32_t descent_timer_interval_ms);

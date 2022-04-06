@@ -33,26 +33,31 @@ int main() {
 	Error_Returns status = RPi_Success;
     stdio_init_all();
 	sleep_ms(500); //Let the USB bus get set up
-  
-	printf("Modroc 1.0 here!\n");
 	
 	do
 	{
 		message_init();		
 		status = configure_hardware_platform();
-		if (status != RPi_Success)
-		{
-			printf("configure_hardware_platform failed: %u\n", status);
-			sleep_ms(500); //Let the message get sent...
-			break;
-		}
 		
 		//Launch the task to handle logging, etc.
 		multicore_launch_core1(output_task);
-		//Dive into the code that reads inputs and does
-		//the calculations.  If it returns something bad
-		//happened.
-		flight_monitor();		
+		
+		if (status != RPi_Success)
+		{
+			message_send_log("configure_hardware_platform failed: %u\n", status);
+			while (1)
+			{
+				sleep_ms(500);
+			}
+		}
+		else
+		{
+
+			//Dive into the code that reads inputs and does
+			//the calculations.  If it returns something bad
+			//happened.
+			flight_monitor();
+		}		
 	} while(0);
     return 0;
 }
