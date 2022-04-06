@@ -200,8 +200,7 @@ Error_Returns altimeter_update_altitude()
 
 //Returns the current difference between the base altitude that is obtained at start up
 //or after a call to altitude_reset.
-
-double altimeter_get_delta()
+int32_t altimeter_get_delta()
 {
 	double altitude = 0.0;
 
@@ -211,5 +210,5 @@ double altimeter_get_delta()
 				kalman_filter_data[barometer_ids[count]].estimate);
 	}
 
-	return altitude/barometer_count;
+	return (int32_t)altitude/(int32_t)barometer_count;
 }

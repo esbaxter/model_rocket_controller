@@ -28,4 +28,4 @@ Error_Returns altimeter_reset();
 
 Error_Returns altimeter_update_altitude();
 
-double altimeter_get_delta();
+int32_t altimeter_get_delta();

@@ -31,16 +31,37 @@ File:  input_task.c
 
 #define LOG_FLIGHT_PARAMETERS_TIMER_MS 1000
 
+typedef enum {
+	phase_pad_idle,
+	phase_ascent,
+	phase_descent,
+} Flight_Phase;
+
 //Out here for safety's sake
 repeating_timer_t timer;
+static int32_t current_altitude = 0;
+static int32_t previous_altitude = 0;
+static Flight_Phase current_flight_phase = phase_pad_idle;
 
-bool log_flight_parameters(repeating_timer_t *rt) 
+static bool log_ascent_parameters(repeating_timer_t *rt) 
 {
 	Log_Ascent_Parameters_t entry;
-	entry.altitude = altimeter_get_delta();
+	previous_altitude = current_altitude;
+	current_altitude = entry.altitude = altimeter_get_delta();
 	entry.z_acceleration = 0;
 	entry.z_velocity = 0;
 	message_log_ascent_params(&entry);
+
+	return true; // keep repeating	
+}
+
+static bool log_descent_parameters(repeating_timer_t *rt) 
+{
+	Log_Descent_Parameters_t entry;
+	previous_altitude = current_altitude;
+	current_altitude = entry.altitude = altimeter_get_delta();
+	entry.temperature = 0;  //Add thermometer
+	message_log_descent_params(&entry);
 
 	return true; // keep repeating	
 }
@@ -51,8 +72,8 @@ void flight_monitor() {
 	{
 		Error_Returns status = RPi_Success;
 
-		if (!add_repeating_timer_ms(LOG_FLIGHT_PARAMETERS_TIMER_MS, log_flight_parameters, NULL, &timer)) {
-			message_send_log("input_task(): Failed to add timer\n");
+		if (!add_repeating_timer_ms(LOG_FLIGHT_PARAMETERS_TIMER_MS, log_ascent_parameters, NULL, &timer)) {
+			message_send_log("input_task(): Failed to add log_ascent_parameters timer\n");
 			break;;
 		}
 		
@@ -65,6 +86,24 @@ void flight_monitor() {
 				sleep_ms(500); //Let the message get sent...
 				break;
 			}
+			
+			//When available transition from pad_idle to ascent when z acceleration is greater than 1G
+			if ((current_flight_phase == phase_pad_idle) && (current_altitude == 1))
+			{
+				current_flight_phase = phase_ascent;
+			}
+	
+			if ((current_flight_phase == phase_ascent) && ((current_altitude -  previous_altitude) == -1))
+			{
+				cancel_repeating_timer(&timer);
+				if (!add_repeating_timer_ms(LOG_FLIGHT_PARAMETERS_TIMER_MS, log_descent_parameters, NULL, &timer)) 
+				{
+				message_send_log("input_task(): Failed to add log_descent_parameters timer\n");			
+				break;
+				}
+				current_flight_phase = phase_descent;
+			}
+		
 		}
 	} while(0);
 

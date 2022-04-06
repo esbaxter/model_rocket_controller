@@ -43,14 +43,14 @@ typedef enum {
 
 typedef struct Log_Ascent_Parameters_S
 {
-	double altitude;  //In meters
+	int32_t altitude;  //In meters
 	uint16_t z_acceleration;  // In meters/second2
 	uint16_t z_velocity;  //In meters/second
 } Log_Ascent_Parameters_t;
 
 typedef struct Log_Descent_Parameters_S
 {
-	double altitude;  //In meters
+	int32_t altitude;  //In meters
 	double temperature;  // In degrees C
 } Log_Descent_Parameters_t;
 

@@ -43,7 +43,7 @@ void message_log_ascent_params(Log_Ascent_Parameters_t *log_ascent_parameters)
 	queue_add_blocking(&log_params_queue, &entry);
 }
 
-void message_log_descent(Log_Descent_Parameters_t *log_descent_parameters)
+void message_log_descent_params(Log_Descent_Parameters_t *log_descent_parameters)
 {
 	Intertask_Param_Message_t entry;
 	entry.message_type = message_log_descent_parameters;

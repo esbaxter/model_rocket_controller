@@ -41,24 +41,25 @@ void output_task() {
 				switch (param_entry.message_type)
 				{
 					case message_log_ascent_parameters:
-						printf("%u: altitude %f z accel: %hu z velocity %hu\n", 
-						   param_entry.time_stamp, param_entry.message.log_ascent_parameters.altitude, param_entry.message.log_ascent_parameters.z_acceleration,
+						printf("%u: altitude: %d z accel: %hu z velocity %hu\n", 
+						   param_entry.time_stamp, param_entry.message.log_ascent_parameters.altitude, 
+						   param_entry.message.log_ascent_parameters.z_acceleration,
 						   param_entry.message.log_ascent_parameters.z_velocity);				
 						break;
 					
 					case message_log_descent_parameters:
-						printf("%u: altitude %f temperature: %f\n", 
+						printf("%u: altitude %d temperature: %f\n", 
 						   param_entry.time_stamp, param_entry.message.log_descent_parameters.altitude, param_entry.message.log_descent_parameters.temperature);
-					
+						break;
 					default:
-						message_send_log("output_task:  Rx'd uknown message %u\n", param_entry.message_type);
+						message_send_log("output_task:  Rx'd unknown message %u\n", param_entry.message_type);
 					break;
 				}
 			}
 			
 			if (message_get_log(&log_entry))
 			{
-				printf("%u: %s/n", log_entry.time_stamp, log_entry.log_message);
+				printf("%u: %s", log_entry.time_stamp, log_entry.log_message);
 			}
 		}
 	} while(0);
