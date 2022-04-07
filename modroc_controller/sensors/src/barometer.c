@@ -30,10 +30,10 @@ and barometric pressure chips.
 
 typedef struct Barometer_Interface_Struct
 {
-Error_Returns (*chip_init)(uint32_t id, i2c_inst_t *i2c, uint32_t address);
+Error_Returns (*chip_init)(uint32_t *id, i2c_inst_t *i2c, uint32_t address);
 Error_Returns (*chip_reset)(uint32_t id);
 Error_Returns (*chip_get_current_pressure)(uint32_t id, uint32_t *pressure_ptr);
-uint32_t address;
+uint32_t chip_id;
 } Barometer_Interface;
 
 static uint32_t number_barometers_initialized = 0;
@@ -58,7 +58,7 @@ Error_Returns barometer_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address)
 		barometer_chip[number_barometers_initialized].chip_reset = bme280_reset;
 		barometer_chip[number_barometers_initialized].chip_get_current_pressure = bme280_get_current_pressure;
 
-		to_return = barometer_chip[number_barometers_initialized].chip_init(number_barometers_initialized, i2c, address);
+		to_return = barometer_chip[number_barometers_initialized].chip_init(&barometer_chip[number_barometers_initialized].chip_id, i2c, address);
 
 		/* If the chip initialization isn't successfull then there is no
 		   need to bother the client with the details, just return that
@@ -80,7 +80,7 @@ Error_Returns barometer_reset(uint32_t id)
 	Error_Returns to_return = RPi_NotInitialized;
 	if (id < number_barometers_initialized)
 	{
-		to_return = barometer_chip[id].chip_reset(id);
+		to_return = barometer_chip[id].chip_reset(barometer_chip[id].chip_id);
 	}
 	return to_return;
 }
@@ -90,7 +90,7 @@ Error_Returns barometer_get_current_pressure(uint32_t id, uint32_t *pressure_ptr
 	Error_Returns to_return = RPi_NotInitialized;
 	if (id < number_barometers_initialized)
 	{
-		to_return = barometer_chip[id].chip_get_current_pressure(id, pressure_ptr);
+		to_return = barometer_chip[id].chip_get_current_pressure(barometer_chip[id].chip_id, pressure_ptr);
 	}
 	return to_return;
 }

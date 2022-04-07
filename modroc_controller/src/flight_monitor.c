@@ -27,14 +27,17 @@ File:  input_task.c
 #include "common.h"
 #include "flight_monitor.h"
 #include "altimeter.h"
+#include "thermometer.h"
 
 #define DEFAULT_ASCENT_TIMER_MS 1000
 #define DEFAULT_DESCENT_TIMER_MS 1000
 
+#define APOGEE_DETECTION_DELTA 1
+
 typedef struct Critical_Flight_Params_S
 {
 	int32_t current_altitude;
-	int32_t previous_altitude;
+	int32_t maximum_altitude;
 } Critical_Flight_Params_t;
 
 typedef enum {
@@ -54,9 +57,12 @@ static bool log_ascent_parameters(repeating_timer_t *rt)
 {
 	Log_Ascent_Parameters_t entry;
 	Critical_Flight_Params_t *critical_flight_params = (Critical_Flight_Params_t *) rt->user_data;
-	
-	critical_flight_params->previous_altitude = critical_flight_params->current_altitude;
+		
 	critical_flight_params->current_altitude = entry.altitude = altimeter_get_delta();
+	if (critical_flight_params->current_altitude > critical_flight_params->maximum_altitude)
+	{
+		critical_flight_params->maximum_altitude = critical_flight_params->current_altitude;
+	}
 	entry.z_acceleration = 0;
 	entry.z_velocity = 0;
 	message_log_ascent_params(&entry);
@@ -71,9 +77,8 @@ static bool log_descent_parameters(repeating_timer_t *rt)
 	Log_Descent_Parameters_t entry;
 	Critical_Flight_Params_t *critical_flight_params = (Critical_Flight_Params_t *) rt->user_data;
 	
-	critical_flight_params->previous_altitude = critical_flight_params->current_altitude;
 	critical_flight_params->current_altitude = entry.altitude = altimeter_get_delta();
-	entry.temperature = 0;  //Add thermometer
+	entry.temperature = thermometer_get_current_temperature();
 	message_log_descent_params(&entry);
 
 	return true; // keep repeating	
@@ -96,7 +101,7 @@ static Error_Returns flight_state_machine()
 		case phase_initial:  //Initialize state and transition to pad idle
 		{
 			critical_flight_params.current_altitude = 0;
-			critical_flight_params.previous_altitude = 0;
+			critical_flight_params.maximum_altitude = 0;
 			current_flight_phase = phase_pad_idle;
 			message_send_log("Pad idle\n");
 			break;
@@ -104,7 +109,7 @@ static Error_Returns flight_state_machine()
 		
 		case phase_pad_idle:  //Check to see if we have lifted off, if so start logging.
 		{			
-			//When available transition from pad_idle to ascent when z acceleration is greater than 1G
+			//When available  also transition from pad_idle to ascent when z acceleration is greater than 1G
 			if (altimeter_get_delta() >= 1)
 			{
 				if (!add_repeating_timer_ms(ascent_timer_interval, log_ascent_parameters, &critical_flight_params, &timer)) 
@@ -123,7 +128,7 @@ static Error_Returns flight_state_machine()
 		
 		case phase_ascent:  //Check for apogee, if found transition to descent
 		{
-			if ((critical_flight_params.current_altitude - critical_flight_params.previous_altitude) == -1)
+			if ((critical_flight_params.maximum_altitude - critical_flight_params.current_altitude) >= APOGEE_DETECTION_DELTA)
 			{
 				cancel_repeating_timer(&timer);
 				if (!add_repeating_timer_ms(descent_timer_interval, log_descent_parameters, &critical_flight_params, &timer)) 

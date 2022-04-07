@@ -31,13 +31,17 @@ hardware (e.g. altimeter).
 #include "pico/binary_info.h"
 
 #include "common.h"
+#include "message.h"
 #include "hardware_platform.h"
 #include "barometer.h"
 #include "altimeter.h"
+#include "thermometer.h"
 
 #define DESIRED_I2C_BAUD_RATE 100 * 1000
 #define BAROMETER_ADDRESS 0x76
 #define BAROMETER_COUNT 1
+
+#define THERMOMETER_ADDRESS 0x76
 
 static uint32_t barometer_id[BAROMETER_COUNT] = {0xffffffff};
 
@@ -73,18 +77,23 @@ static Error_Returns configure_altimeter()
 		to_return = barometer_init(&barometer_id[0], i2c0, BAROMETER_ADDRESS);
 		if (to_return != RPi_Success)
 		{
-			printf("configure_altimeter():  barometer_init failed: %u\n", to_return);
+			message_send_log("configure_altimeter():  barometer_init failed: %u\n", to_return);
 			break;
 		}
 		
 		to_return = altimeter_initialize(&barometer_id[0], BAROMETER_COUNT);
 		if (to_return != RPi_Success)
 		{
-			printf("configure_altimeter():  altimeter_initialize failed: %u\n", to_return);
+			message_send_log("configure_altimeter():  altimeter_initialize failed: %u\n", to_return);
 			break;
 		}		
 	} while(0);
 	return to_return;
+}
+
+static Error_Returns configure_thermometer()
+{
+	return thermometer_init(i2c0, THERMOMETER_ADDRESS);
 }
 
 Error_Returns configure_hardware_platform()
@@ -96,11 +105,25 @@ Error_Returns configure_hardware_platform()
 		to_return = configure_busses();
 		if (to_return != RPi_Success)
 		{
-			printf("configure_hardware_platform:  configure_busses failed\n");
+			message_send_log("configure_hardware_platform:  configure_busses failed\n");
 			break;
 		}
 
 		to_return = configure_altimeter();
+		
+		if (to_return != RPi_Success)
+		{
+			message_send_log("configure_hardware_platform:  configure_altimeter failed\n");
+			break;
+		}
+
+		to_return = configure_thermometer();
+		
+		if (to_return != RPi_Success)
+		{
+			message_send_log("configure_hardware_platform:  configure_thermometer failed\n");
+			break;
+		}
 	}
 	while(0);
 	return to_return;

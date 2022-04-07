@@ -30,6 +30,8 @@ Note:  The conversion algorithms were taken directly from the BME 280 spec sheet
 
 #include "bme280.h"
 
+#define BME280_SUPPORTED_DEVICE_COUNT BAROMETER_NUMBER_SUPPORTED_DEVICES + THERMOMETER_NUMBER_SUPPORTED_DEVICES
+
 #define BME280_CHIP_ID 0x60
 #define BME280_CHIP_RESET_WORD 0xB6
 
@@ -96,9 +98,11 @@ typedef struct Comp_Params {
 	i2c_inst_t *i2c;
 } Compensation_Parameters;
 
-static Compensation_Parameters bme280_compensation_params[BAROMETER_NUMBER_SUPPORTED_DEVICES];
+static Compensation_Parameters bme280_compensation_params[BME280_SUPPORTED_DEVICE_COUNT];
 
 static unsigned char bme280_ready = 0;
+
+static uint32_t number_bme280_initialized = 0;
 
 static uint32_t pressure_temperature_xlsb_mask = 0;
 
@@ -252,122 +256,126 @@ static Error_Returns bme280_read_data(Compensation_Parameters *params_ptr, BME28
 	return to_return;
 }
 
-/* Assumes the I2C bus has been intialized and the id has been vetted
-   to be within an acceptable range.
+/* Assumes the I2C bus has been intialized.
 */
-Error_Returns bme280_init(uint32_t id, i2c_inst_t *i2c, uint32_t address)
+Error_Returns bme280_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address)
 {	
 	Error_Returns to_return = RPi_Success;
 	unsigned char buffer[BME280_TRIM_PARAMETER_BYTES];
 	unsigned int index = 0;
 	
-	Compensation_Parameters *params_ptr = &bme280_compensation_params[id];
-	params_ptr->address = address;
-	params_ptr->i2c = i2c;
-	
-	do
-	{	
-		for(index = 0; index < BME280_TRIM_PARAMETER_BYTES; index++) buffer[index] = 0;
-		
-		buffer[0] = BME280_CHIP_RPi_REGISTER;
-		to_return = bme280_read(params_ptr, buffer, 1);
-		if (to_return != RPi_Success)
-			{
-			printf("bme280_init():  Error reading chip ID read was %u\n", to_return);
-			break;  //No need to continue just return the failure
-			}
-		if (buffer[0] != BME280_CHIP_ID)
+
+	if (number_bme280_initialized < BME280_SUPPORTED_DEVICE_COUNT)
+	{
+		do
 		{
-			printf("bme280_init():  Error chip ID read was 0x%x\n", buffer[0]);
-		}
-		
-		//Read then unpack the compensation parameters stored in the chip
-		for(index = 0; index < BME280_TRIM_PARAMETER_BYTES; index++) buffer[index] = 0;
-		buffer[0] = BME280_FIRST_TRIM_PARAMETER;
-		to_return = bme280_read(params_ptr, buffer, BME280_TRIM_PARAMETER_BYTES);
-		if (to_return != RPi_Success) break;  //No need to continue just return the failure
-		
-		index = 0;
+			Compensation_Parameters *params_ptr = &bme280_compensation_params[number_bme280_initialized];
+			params_ptr->address = address;
+			params_ptr->i2c = i2c;
+			
+			for(index = 0; index < BME280_TRIM_PARAMETER_BYTES; index++) buffer[index] = 0;
+			
+			buffer[0] = BME280_CHIP_RPi_REGISTER;
+			to_return = bme280_read(params_ptr, buffer, 1);
+			if (to_return != RPi_Success)
+				{
+				printf("bme280_init():  Error reading chip ID read was %u\n", to_return);
+				break;  //No need to continue just return the failure
+				}
+			if (buffer[0] != BME280_CHIP_ID)
+			{
+				printf("bme280_init():  Error chip ID read was 0x%x\n", buffer[0]);
+			}
+			
+			//Read then unpack the compensation parameters stored in the chip
+			for(index = 0; index < BME280_TRIM_PARAMETER_BYTES; index++) buffer[index] = 0;
+			buffer[0] = BME280_FIRST_TRIM_PARAMETER;
+			to_return = bme280_read(params_ptr, buffer, BME280_TRIM_PARAMETER_BYTES);
+			if (to_return != RPi_Success) break;  //No need to continue just return the failure
+			
+			index = 0;
 
-		params_ptr->dig_T1 = buffer[index++];
-		params_ptr->dig_T1 |= buffer[index++]<<8;
-		params_ptr->dig_T2 = buffer[index++];
-		params_ptr->dig_T2 |= buffer[index++]<<8;
-		params_ptr->dig_T3 = buffer[index++];
-		params_ptr->dig_T3 |= buffer[index++]<<8;
+			params_ptr->dig_T1 = buffer[index++];
+			params_ptr->dig_T1 |= buffer[index++]<<8;
+			params_ptr->dig_T2 = buffer[index++];
+			params_ptr->dig_T2 |= buffer[index++]<<8;
+			params_ptr->dig_T3 = buffer[index++];
+			params_ptr->dig_T3 |= buffer[index++]<<8;
 
-		params_ptr->dig_P1 = buffer[index++];
-		params_ptr->dig_P1 |= buffer[index++]<<8;
-		params_ptr->dig_P2 = buffer[index++];
-		params_ptr->dig_P2 |= buffer[index++]<<8;
-		params_ptr->dig_P3 = buffer[index++];
-		params_ptr->dig_P3 |= buffer[index++]<<8;
-		params_ptr->dig_P4 = buffer[index++];
-		params_ptr->dig_P4 |= buffer[index++]<<8;
-		params_ptr->dig_P5 = buffer[index++];
-		params_ptr->dig_P5 |= buffer[index++]<<8;
-		params_ptr->dig_P6 = buffer[index++];
-		params_ptr->dig_P6 |= buffer[index++]<<8;
-		params_ptr->dig_P7 = buffer[index++];
-		params_ptr->dig_P7 |= buffer[index++]<<8;
-		params_ptr->dig_P8 = buffer[index++];
-		params_ptr->dig_P8 |= buffer[index++]<<8;
-		params_ptr->dig_P9 = buffer[index++];
-		params_ptr->dig_P9 |= buffer[index++]<<8;
-		
-		for(index = 0; index < BME280_TRIM_PARAMETER_BYTES; index++) buffer[index] = 0;
-		buffer[0] = BME280_SECOND_TRIM_PARAMETER;
-		to_return = bme280_read(params_ptr, buffer, 1);
-		if (to_return != RPi_Success) break;  //No need to continue just return the failure
-		
-		params_ptr->dig_H1 = buffer[0] & 0xFF;
-		
-		for(index = 0; index < BME280_TRIM_PARAMETER_BYTES; index++) buffer[index] = 0;
-		buffer[0] = BME280_THIRD_TRIM_PARAMETER;
-		to_return = bme280_read(params_ptr, buffer, 7);
-		if (to_return != RPi_Success) break;  //No need to continue just return the failure
-		
-		index = 0;
-		
-		params_ptr->dig_H2 = buffer[index++] & 0xFF;
-		params_ptr->dig_H2|= buffer[index++]<<8;
-		params_ptr->dig_H3 = buffer[index++];
-		
-		params_ptr->dig_H4 = buffer[index++] <<4;
-		params_ptr->dig_H4 |= buffer[index] & 0x0F;
-		params_ptr->dig_H5 = (buffer[index++] >> 4) & 0x0F;
-		params_ptr->dig_H5 |= buffer[index++]<<4;
-		params_ptr->dig_H6 = buffer[index++] & 0xFF;
+			params_ptr->dig_P1 = buffer[index++];
+			params_ptr->dig_P1 |= buffer[index++]<<8;
+			params_ptr->dig_P2 = buffer[index++];
+			params_ptr->dig_P2 |= buffer[index++]<<8;
+			params_ptr->dig_P3 = buffer[index++];
+			params_ptr->dig_P3 |= buffer[index++]<<8;
+			params_ptr->dig_P4 = buffer[index++];
+			params_ptr->dig_P4 |= buffer[index++]<<8;
+			params_ptr->dig_P5 = buffer[index++];
+			params_ptr->dig_P5 |= buffer[index++]<<8;
+			params_ptr->dig_P6 = buffer[index++];
+			params_ptr->dig_P6 |= buffer[index++]<<8;
+			params_ptr->dig_P7 = buffer[index++];
+			params_ptr->dig_P7 |= buffer[index++]<<8;
+			params_ptr->dig_P8 = buffer[index++];
+			params_ptr->dig_P8 |= buffer[index++]<<8;
+			params_ptr->dig_P9 = buffer[index++];
+			params_ptr->dig_P9 |= buffer[index++]<<8;
+			
+			for(index = 0; index < BME280_TRIM_PARAMETER_BYTES; index++) buffer[index] = 0;
+			buffer[0] = BME280_SECOND_TRIM_PARAMETER;
+			to_return = bme280_read(params_ptr, buffer, 1);
+			if (to_return != RPi_Success) break;  //No need to continue just return the failure
+			
+			params_ptr->dig_H1 = buffer[0] & 0xFF;
+			
+			for(index = 0; index < BME280_TRIM_PARAMETER_BYTES; index++) buffer[index] = 0;
+			buffer[0] = BME280_THIRD_TRIM_PARAMETER;
+			to_return = bme280_read(params_ptr, buffer, 7);
+			if (to_return != RPi_Success) break;  //No need to continue just return the failure
+			
+			index = 0;
+			
+			params_ptr->dig_H2 = buffer[index++] & 0xFF;
+			params_ptr->dig_H2|= buffer[index++]<<8;
+			params_ptr->dig_H3 = buffer[index++];
+			
+			params_ptr->dig_H4 = buffer[index++] <<4;
+			params_ptr->dig_H4 |= buffer[index] & 0x0F;
+			params_ptr->dig_H5 = (buffer[index++] >> 4) & 0x0F;
+			params_ptr->dig_H5 |= buffer[index++]<<4;
+			params_ptr->dig_H6 = buffer[index++] & 0xFF;
 
-		//Configure the chip appropiately to provide pressure and temperature
-		//at a rate appropriate for a Kalman filter
-		
-		buffer[0] = BME280_CTRL_MEASURE_REGISTER;
-		buffer[1] = BME280_SLEEP_MODE; //Need to set up config in sleep mode
-		to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
-		if (to_return != RPi_Success) break; //Don't continue just return
+			//Configure the chip appropiately to provide pressure and temperature
+			//at a rate appropriate for a Kalman filter
+			
+			buffer[0] = BME280_CTRL_MEASURE_REGISTER;
+			buffer[1] = BME280_SLEEP_MODE; //Need to set up config in sleep mode
+			to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
+			if (to_return != RPi_Success) break; //Don't continue just return
 
-		buffer[0] = BME280_CTRL_CONFIG_REGISTER;
-		buffer[1] = BME280_NO_IIR_16_500MS_STANDBY; //4 wire SPI, IIR 16, .5 ms standby time
-		to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
-		if (to_return != RPi_Success) break; //Don't continue just return
+			buffer[0] = BME280_CTRL_CONFIG_REGISTER;
+			buffer[1] = BME280_NO_IIR_16_500MS_STANDBY; //4 wire SPI, IIR 16, .5 ms standby time
+			to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
+			if (to_return != RPi_Success) break; //Don't continue just return
 
-		buffer[0] = BME280_CTRL_HUMIDITY_REGISTER;
-		buffer[1] = BME280_HUMIDITY_OFF;  //No humidity measurements;
-		to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
-		if (to_return != RPi_Success) break; //Don't continue just return
+			buffer[0] = BME280_CTRL_HUMIDITY_REGISTER;
+			buffer[1] = BME280_HUMIDITY_OFF;  //No humidity measurements;
+			to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
+			if (to_return != RPi_Success) break; //Don't continue just return
 
-		buffer[0] = BME280_CTRL_MEASURE_REGISTER;
-		//Pressure oversample x16, temp oversample x2, normal mode
-		buffer[1] = BME280_PRESS1X_TEMP_1X;
-		to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
-		if (to_return != RPi_Success) break; //Don't continue just return
+			buffer[0] = BME280_CTRL_MEASURE_REGISTER;
+			//Pressure oversample x16, temp oversample x2, normal mode
+			buffer[1] = BME280_PRESS1X_TEMP_1X;
+			to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
+			if (to_return != RPi_Success) break; //Don't continue just return
 
-		pressure_temperature_xlsb_mask = BME280_IIR_ENABLED_MASK;
-		bme280_ready = 1;
+			pressure_temperature_xlsb_mask = BME280_IIR_ENABLED_MASK;
+			bme280_ready = 1;
 
-		sleep_ms(TIME_DELAY); 				 
-	} while(0);
+			*id = number_bme280_initialized++;
+			sleep_ms(TIME_DELAY); 				 
+		} while(0);
+	}
 	
 	return to_return;
 }
@@ -402,6 +410,23 @@ Error_Returns bme280_get_current_pressure(uint32_t id, uint32_t *pressure_ptr)
 		if (to_return != RPi_Success) break;  //No need to continue, just return the error
 		compensate_temperature(id, adc_T);	
 		*pressure_ptr = compensate_pressure(id, adc_P);		
+	}  while(0);
+	return to_return;
+}
+
+Error_Returns bme280_get_current_temperature(uint32_t id, int32_t *temperature_ptr)
+{
+	Error_Returns to_return = RPi_Success;
+	Compensation_Parameters *params_ptr = &bme280_compensation_params[id];
+	
+	BME280_S32_t adc_P = 0;
+	BME280_S32_t adc_T = 0;
+
+	do
+	{
+		to_return = bme280_read_data(params_ptr, &adc_T, &adc_P);
+		if (to_return != RPi_Success) break;  //No need to continue, just return the error
+		*temperature_ptr = compensate_temperature(id, adc_T);		
 	}  while(0);
 	return to_return;
 }

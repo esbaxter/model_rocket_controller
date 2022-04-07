@@ -17,10 +17,10 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTIO
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-File:  bme280.h
+File:  thermometer.h
 
-Interface into the support software for the BME 280 humidity, temperature
-and barometric pressure chip.
+Interface into the support software for a variety of humidity, temperature
+and barometric pressure chips.
 
 */
 
@@ -28,17 +28,14 @@ and barometric pressure chip.
 #include "hardware/i2c.h"
 
 #include "common.h"
-#include "barometer.h"
-#include "thermometer.h"
 
-typedef int BME280_S32_t;
-typedef unsigned int BME280_U32_t;
-typedef long long signed int BME280_S64_t;
+#define THERMOMETER_NUMBER_SUPPORTED_DEVICES 1
 
-Error_Returns bme280_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address);
+/*  Initializes a thermometer with the given address on the specified I2C bus.  Only supports one thermometer so multiple calls will just be a no op.
+*/
+	
+Error_Returns thermometer_init(i2c_inst_t *i2c, uint32_t address);
 
-Error_Returns bme280_reset(uint32_t id);
+Error_Returns thermometer_reset();
 
-Error_Returns bme280_get_current_pressure(uint32_t id, uint32_t *pressure_ptr);
-
-Error_Returns bme280_get_current_temperature(uint32_t id, int32_t *temperature_ptr);
+double thermometer_get_current_temperature();
