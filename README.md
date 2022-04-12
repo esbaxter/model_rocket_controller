@@ -19,3 +19,23 @@ Secondary requirements:
 Hopefully, this repository will eventually have reference implementation schematics, BOMs, Gerber files and code.
 
 I have selected the Raspberry Pi Pico as the platform to build on, mainly because I want to learn its capabilities and it looks rather interesting.
+
+Building:
+
+This software package is being developed using the guidance of the Raspberry Pi Pico developers handbook.  To build the software you will need to follow the "Getting Started" section of the guide to obtain the Pico SDK and tinyUSB libraries.  The SDK should be put at the same top level directory as this software.  Currently, I have confirmed it builds correctly on Windows 11.  CMake files are provided which should support building on Linux.
+
+Implementation sequence for primary requirements:
+
+1) Impement basic program structure along with logging.  Complete
+2) Implement support for a Bosch BME 280 pressure sensor.  Complete
+3) Implement altitude support.  Complete
+4) Implement basic state machine for a flight.  Complete
+5) Implment thermometer.  Complete
+6) Implement support for InvenSense ICM-20948.  In progress
+7) Implement kinematics support to determine accelerations and velocities.
+8) Implement support for FRAM storage.
+9) Implement support for log retrieval.
+10) Create schematics for board that supports primary requirements.
+
+Implementation sequence for secondary requirements:
+TBD
