@@ -17,9 +17,9 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTIO
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-File:  barometer.h
+File:  icm20948.h
 
-Interface into the support software for a variety of barometric pressure chips.
+Interface into the support software for the InvenSense ICM-20948 9-axis motion tracker.
 
 */
 
@@ -27,17 +27,8 @@ Interface into the support software for a variety of barometric pressure chips.
 #include "hardware/i2c.h"
 
 #include "common.h"
+#include "accelerometer.h"
 
-#define BAROMETER_NUMBER_SUPPORTED_DEVICES 2
+Error_Returns icm20948_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address);
 
-/*  Initializes a barometer with the given address on the specified I2C bus, 
-	if the maximum number of barometers are exceeded or the barometer chip fails 
-	to initialize returns RPi_NotInitialized, otherwise RPi_Success is returned 
-	along with a valid ID.
-*/
-	
-Error_Returns barometer_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address);
-
-Error_Returns barometer_reset(uint32_t id);
-
-Error_Returns barometer_get_current_pressure(uint32_t id, uint32_t *pressure_ptr);
+Error_Returns icm20948_reset(uint32_t id);

@@ -36,14 +36,21 @@ hardware (e.g. altimeter).
 #include "barometer.h"
 #include "altimeter.h"
 #include "thermometer.h"
+#include "accelerometer.h"
+#include "kinematics.h"
 
 #define DESIRED_I2C_BAUD_RATE 100 * 1000
+
 #define BAROMETER_ADDRESS 0x76
 #define BAROMETER_COUNT 1
 
 #define THERMOMETER_ADDRESS 0x76
 
+#define ACCELEROMETER_ADDRESS 0x69
+#define ACCELEROMETER_COUNT 1
+
 static uint32_t barometer_id[BAROMETER_COUNT] = {0xffffffff};
+static uint32_t acceleromter_id[ACCELEROMETER_COUNT] = {0xffffffff};
 
 static Error_Returns configure_busses()
 {
@@ -96,6 +103,30 @@ static Error_Returns configure_thermometer()
 	return thermometer_init(i2c0, THERMOMETER_ADDRESS);
 }
 
+static Error_Returns configure_kinematics()
+{
+	Error_Returns to_return = RPi_NotInitialized;
+	
+	do
+	{
+		//Current design has all accelerometers, gyroscopes, etc. chips on i2c0
+		to_return = accelerometer_init(&acceleromter_id[0], i2c0, ACCELEROMETER_ADDRESS);
+		if (to_return != RPi_Success)
+		{
+			message_send_log("configure_kinematics():  barometer_init failed: %u\n", to_return);
+			break;
+		}
+		
+		to_return = kinematics_initialize(&acceleromter_id[0], ACCELEROMETER_COUNT);
+		if (to_return != RPi_Success)
+		{
+			message_send_log("configure_kinematics():  altimeter_initialize failed: %u\n", to_return);
+			break;
+		}		
+	} while(0);
+	return to_return;
+}
+
 Error_Returns configure_hardware_platform()
 {
 	Error_Returns to_return = RPi_NotInitialized;
@@ -122,6 +153,13 @@ Error_Returns configure_hardware_platform()
 		if (to_return != RPi_Success)
 		{
 			message_send_log("configure_hardware_platform:  configure_thermometer failed\n");
+			break;
+		}
+		
+		to_return = configure_kinematics();
+		if (to_return != RPi_Success)
+		{
+			message_send_log("configure_hardware_platform:  configure_kinematics failed\n");
 			break;
 		}
 	}

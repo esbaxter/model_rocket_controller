@@ -17,9 +17,9 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTIO
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-File:  barometer.h
+File:  accelerometer.h
 
-Interface into the support software for a variety of barometric pressure chips.
+Interface into the support software for a variety of accelerometers.
 
 */
 
@@ -28,16 +28,14 @@ Interface into the support software for a variety of barometric pressure chips.
 
 #include "common.h"
 
-#define BAROMETER_NUMBER_SUPPORTED_DEVICES 2
+#define ACCELEROMETER_NUMBER_SUPPORTED_DEVICES 1
 
-/*  Initializes a barometer with the given address on the specified I2C bus, 
-	if the maximum number of barometers are exceeded or the barometer chip fails 
+/*  Initializes a accelerometer with the given address on the specified I2C bus, 
+	if the maximum number of accelerometers are exceeded or the accelerometer chip fails 
 	to initialize returns RPi_NotInitialized, otherwise RPi_Success is returned 
 	along with a valid ID.
 */
 	
-Error_Returns barometer_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address);
+Error_Returns accelerometer_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address);
 
-Error_Returns barometer_reset(uint32_t id);
-
-Error_Returns barometer_get_current_pressure(uint32_t id, uint32_t *pressure_ptr);
+Error_Returns accelerometer_reset(uint32_t id);

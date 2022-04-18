@@ -100,8 +100,6 @@ typedef struct Comp_Params {
 
 static Compensation_Parameters bme280_compensation_params[BME280_SUPPORTED_DEVICE_COUNT];
 
-static unsigned char bme280_ready = 0;
-
 static uint32_t number_bme280_initialized = 0;
 
 static uint32_t pressure_temperature_xlsb_mask = 0;
@@ -234,24 +232,21 @@ static Error_Returns bme280_read_data(Compensation_Parameters *params_ptr, BME28
 	unsigned int index = 0;
 	//unsigned int status_attempts = 0;
 	
-	if (bme280_ready)
+	do
 	{
-		do
-		{
-			for(index = 0; index < BME280_DATA_REGISTER_SIZE; index++) buffer[index] = 0;
-			
-			buffer[0] = BME280_FIRST_DATA_REGISTER;
-			to_return = bme280_read(params_ptr, buffer, BME280_DATA_REGISTER_SIZE);
-			if (to_return != RPi_Success) break;  //No need to continue, just return the error
+		for(index = 0; index < BME280_DATA_REGISTER_SIZE; index++) buffer[index] = 0;
+		
+		buffer[0] = BME280_FIRST_DATA_REGISTER;
+		to_return = bme280_read(params_ptr, buffer, BME280_DATA_REGISTER_SIZE);
+		if (to_return != RPi_Success) break;  //No need to continue, just return the error
 
-		   /* Store the parsed register values for pressure data */
-			bme280_extract_long_data(&buffer[0], adc_P_ptr);
+	   /* Store the parsed register values for pressure data */
+		bme280_extract_long_data(&buffer[0], adc_P_ptr);
 
-			/* Store the parsed register values for temperature data */
-			bme280_extract_long_data(&buffer[3], adc_T_ptr);
+		/* Store the parsed register values for temperature data */
+		bme280_extract_long_data(&buffer[3], adc_T_ptr);
 
-		} while(0);
-	}
+	} while(0);
 	
 	return to_return;
 }
@@ -370,7 +365,6 @@ Error_Returns bme280_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address)
 			if (to_return != RPi_Success) break; //Don't continue just return
 
 			pressure_temperature_xlsb_mask = BME280_IIR_ENABLED_MASK;
-			bme280_ready = 1;
 
 			*id = number_bme280_initialized++;
 			sleep_ms(TIME_DELAY); 				 
@@ -383,13 +377,13 @@ Error_Returns bme280_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address)
 Error_Returns bme280_reset(uint32_t id)
 {
 	Error_Returns to_return = RPi_NotInitialized;
-	Compensation_Parameters *params_ptr = &bme280_compensation_params[id];
-	
-	unsigned char buffer[BME280_CTRL_REGISTER_WRITE_SIZE];
-	buffer[0] = BME280_CHIP_RESET_REGISTER;
-	buffer[1] = BME280_CHIP_RESET_WORD;
-	if (bme280_ready)
+	if (id < number_bme280_initialized)
 	{
+		Compensation_Parameters *params_ptr = &bme280_compensation_params[id];
+	
+		unsigned char buffer[BME280_CTRL_REGISTER_WRITE_SIZE];
+		buffer[0] = BME280_CHIP_RESET_REGISTER;
+		buffer[1] = BME280_CHIP_RESET_WORD;
 		to_return = bme280_write(params_ptr, buffer, BME280_CTRL_REGISTER_WRITE_SIZE);
 		sleep_ms(TIME_DELAY);  //Delay to allow reset
 	}
@@ -398,35 +392,41 @@ Error_Returns bme280_reset(uint32_t id)
 
 Error_Returns bme280_get_current_pressure(uint32_t id, uint32_t *pressure_ptr)
 {
-	Error_Returns to_return = RPi_Success;
-	Compensation_Parameters *params_ptr = &bme280_compensation_params[id];
-	
-	BME280_S32_t adc_P = 0;
-	BME280_S32_t adc_T = 0;
-
-	do
+	Error_Returns to_return = RPi_NotInitialized;
+	if (id < number_bme280_initialized)
 	{
-		to_return = bme280_read_data(params_ptr, &adc_T, &adc_P);
-		if (to_return != RPi_Success) break;  //No need to continue, just return the error
-		compensate_temperature(id, adc_T);	
-		*pressure_ptr = compensate_pressure(id, adc_P);		
-	}  while(0);
+		Compensation_Parameters *params_ptr = &bme280_compensation_params[id];
+	
+		BME280_S32_t adc_P = 0;
+		BME280_S32_t adc_T = 0;
+
+		do
+		{
+			to_return = bme280_read_data(params_ptr, &adc_T, &adc_P);
+			if (to_return != RPi_Success) break;  //No need to continue, just return the error
+			compensate_temperature(id, adc_T);	
+			*pressure_ptr = compensate_pressure(id, adc_P);		
+		}  while(0);
+	}
 	return to_return;
 }
 
 Error_Returns bme280_get_current_temperature(uint32_t id, int32_t *temperature_ptr)
 {
-	Error_Returns to_return = RPi_Success;
-	Compensation_Parameters *params_ptr = &bme280_compensation_params[id];
-	
-	BME280_S32_t adc_P = 0;
-	BME280_S32_t adc_T = 0;
-
-	do
+	Error_Returns to_return = RPi_NotInitialized;
+	if (id < number_bme280_initialized)
 	{
-		to_return = bme280_read_data(params_ptr, &adc_T, &adc_P);
-		if (to_return != RPi_Success) break;  //No need to continue, just return the error
-		*temperature_ptr = compensate_temperature(id, adc_T);		
-	}  while(0);
+		Compensation_Parameters *params_ptr = &bme280_compensation_params[id];
+		
+		BME280_S32_t adc_P = 0;
+		BME280_S32_t adc_T = 0;
+
+		do
+		{
+			to_return = bme280_read_data(params_ptr, &adc_T, &adc_P);
+			if (to_return != RPi_Success) break;  //No need to continue, just return the error
+			*temperature_ptr = compensate_temperature(id, adc_T);		
+		}  while(0);
+	}
 	return to_return;
 }

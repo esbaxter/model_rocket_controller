@@ -17,52 +17,50 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTIO
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-File:  barometer.c
+File:  accelerometer.c
 
 Interface into the support software for a variety of humidity, temperature
 and barometric pressure chips.
 
 */
 
-#include "barometer.h"
-#include "bme280.h"
+#include "accelerometer.h"
+#include "icm20948.h"
 #include "pico/stdlib.h"
 
-typedef struct Barometer_Interface_Struct
+typedef struct Accelerometer_Interface_Struct
 {
 Error_Returns (*chip_init)(uint32_t *id, i2c_inst_t *i2c, uint32_t address);
 Error_Returns (*chip_reset)(uint32_t id);
-Error_Returns (*chip_get_current_pressure)(uint32_t id, uint32_t *pressure_ptr);
 uint32_t chip_id;
-} Barometer_Interface;
+} Accelerometer_Interface;
 
-static uint32_t number_barometers_initialized = 0;
+static uint32_t number_accelerometers_initialized = 0;
 
-static Barometer_Interface barometer_chip[BAROMETER_NUMBER_SUPPORTED_DEVICES];
+static Accelerometer_Interface accelerometer_chip[ACCELEROMETER_NUMBER_SUPPORTED_DEVICES];
 
 /* Current implementation only supports the BME_280 barometer chip, this could
    either become a runtime initialization if a variety of different barometers
    are attached or could be a compile time assignment if all attached 
    barometers are of the same type.
 */
-Error_Returns barometer_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address)
+Error_Returns accelerometer_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address)
 {
 	Error_Returns to_return = RPi_NotInitialized;
 	do
 	{
-		if (number_barometers_initialized >= BAROMETER_NUMBER_SUPPORTED_DEVICES)
+		if (number_accelerometers_initialized >= ACCELEROMETER_NUMBER_SUPPORTED_DEVICES)
 		{
 			break;
 		}
-		barometer_chip[number_barometers_initialized].chip_init = bme280_init;
-		barometer_chip[number_barometers_initialized].chip_reset = bme280_reset;
-		barometer_chip[number_barometers_initialized].chip_get_current_pressure = bme280_get_current_pressure;
+		accelerometer_chip[number_accelerometers_initialized].chip_init = icm20948_init;
+		accelerometer_chip[number_accelerometers_initialized].chip_reset = icm20948_reset;
 
-		to_return = barometer_chip[number_barometers_initialized].chip_init(&barometer_chip[number_barometers_initialized].chip_id, i2c, address);
+		to_return = accelerometer_chip[number_accelerometers_initialized].chip_init(&accelerometer_chip[number_accelerometers_initialized].chip_id, i2c, address);
 
 		/* If the chip initialization isn't successfull then there is no
 		   need to bother the client with the details, just return that
-		   this barometer isn't initialized.
+		   this accelerometer isn't initialized.
 		*/
 		if (to_return != RPi_Success)
 		{
@@ -70,27 +68,19 @@ Error_Returns barometer_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address)
 			break;
 		}
 		
-		*id = number_barometers_initialized++;
+		*id = number_accelerometers_initialized++;
 	} while(0);
 	return to_return;
 }
 
-Error_Returns barometer_reset(uint32_t id)
+
+Error_Returns accelerometer_reset(uint32_t id)
 {
 	Error_Returns to_return = RPi_NotInitialized;
-	if (id < number_barometers_initialized)
+	if (id < number_accelerometers_initialized)
 	{
-		to_return = barometer_chip[id].chip_reset(barometer_chip[id].chip_id);
+		to_return = accelerometer_chip[id].chip_reset(accelerometer_chip[id].chip_id);
 	}
 	return to_return;
 }
 
-Error_Returns barometer_get_current_pressure(uint32_t id, uint32_t *pressure_ptr)
-{
-	Error_Returns to_return = RPi_NotInitialized;
-	if (id < number_barometers_initialized)
-	{
-		to_return = barometer_chip[id].chip_get_current_pressure(barometer_chip[id].chip_id, pressure_ptr);
-	}
-	return to_return;
-}
