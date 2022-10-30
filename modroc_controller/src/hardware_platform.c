@@ -28,6 +28,7 @@ hardware (e.g. altimeter).
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
+#include "hardware/spi.h"
 #include "pico/binary_info.h"
 
 #include "common.h"
@@ -39,14 +40,22 @@ hardware (e.g. altimeter).
 #include "accelerometer.h"
 #include "kinematics.h"
 
-#define DESIRED_I2C_BAUD_RATE 100 * 1000
+#define DESIRED_I2C_BAUD_RATE 400 * 1000
+#define I2C_BAUD_RATE_TOLERANCE 10  //10 percent tolerance
+
+#define DESIRED_SPI_BAUD_RATE 1000 * 1000 //500 * 1000 //Conservative because of current setup
+#define SPI_BAUD_RATE_TOLERANCE 10 //10 percent tolerance
+#define SPI0_MISO	16
+#define SPI0_MOSI	19
+#define SPI0_CLK	18
+#define SPI0_CS		17
 
 #define BAROMETER_ADDRESS 0x76
 #define BAROMETER_COUNT 1
 
 #define THERMOMETER_ADDRESS 0x76
 
-#define ACCELEROMETER_ADDRESS 0x69
+//#define ACCELEROMETER_ADDRESS 0x69
 #define ACCELEROMETER_COUNT 1
 
 static uint32_t barometer_id[BAROMETER_COUNT] = {0xffffffff};
@@ -58,17 +67,33 @@ static Error_Returns configure_busses()
     do
 	{
 		uint baud_rate = i2c_init(i2c0, DESIRED_I2C_BAUD_RATE);
-		if (baud_rate != DESIRED_I2C_BAUD_RATE)
+		if (baud_rate < DESIRED_I2C_BAUD_RATE - (DESIRED_I2C_BAUD_RATE / I2C_BAUD_RATE_TOLERANCE))
 		{
-			printf("configure_busses:  failed to configure i2c\n");
+			printf("configure_busses:  failed to configure i2c baud rate was %u\n", baud_rate);
 			break;
 		}
-		
+
 		gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
 		gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
 		//Set pullups to pull the I2C bus high when idle
 		gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
 		gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
+		
+		baud_rate = spi_init(spi0, DESIRED_SPI_BAUD_RATE);
+		if (baud_rate < DESIRED_SPI_BAUD_RATE - (DESIRED_SPI_BAUD_RATE / SPI_BAUD_RATE_TOLERANCE))
+		{
+			printf("configure_busses:  failed to configure spi baud rate was %u\n", baud_rate);
+			break;
+		}
+		
+		gpio_set_function(SPI0_MISO, GPIO_FUNC_SPI);
+		gpio_set_function(SPI0_CLK, GPIO_FUNC_SPI);
+		gpio_set_function(SPI0_MOSI, GPIO_FUNC_SPI);
+		
+		gpio_init(SPI0_CS);
+		gpio_set_dir(SPI0_CS, GPIO_OUT);
+		gpio_put(SPI0_CS, 1);
+
 		to_return = RPi_Success;
 	} while(0);
 	return to_return;
@@ -109,18 +134,18 @@ static Error_Returns configure_kinematics()
 	
 	do
 	{
-		//Current design has all accelerometers, gyroscopes, etc. chips on i2c0
-		to_return = accelerometer_init(&acceleromter_id[0], i2c0, ACCELEROMETER_ADDRESS);
+		//Current design has all accelerometers, gyroscopes, etc. chips on spi0
+		to_return = accelerometer_init(&acceleromter_id[0], spi0, SPI0_CS);
 		if (to_return != RPi_Success)
 		{
-			message_send_log("configure_kinematics():  barometer_init failed: %u\n", to_return);
+			message_send_log("configure_kinematics():  accelerometer_init failed: %u\n", to_return);
 			break;
 		}
 		
 		to_return = kinematics_initialize(&acceleromter_id[0], ACCELEROMETER_COUNT);
 		if (to_return != RPi_Success)
 		{
-			message_send_log("configure_kinematics():  altimeter_initialize failed: %u\n", to_return);
+			message_send_log("configure_kinematics():  kinematics_initialize failed: %u\n", to_return);
 			break;
 		}		
 	} while(0);

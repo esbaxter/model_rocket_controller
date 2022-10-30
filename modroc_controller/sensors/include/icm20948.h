@@ -17,18 +17,18 @@ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTIO
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-File:  icm20948.h
+File:  Icm20948_Inv.h
 
 Interface into the support software for the InvenSense ICM-20948 9-axis motion tracker.
 
 */
 
 #pragma once
-#include "hardware/i2c.h"
+#include "hardware/spi.h"
 
 #include "common.h"
 #include "accelerometer.h"
 
-Error_Returns icm20948_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address);
+Error_Returns icm20948_init(uint32_t *id, spi_inst_t *spi, uint32_t chip_select);
 
 Error_Returns icm20948_reset(uint32_t id);

@@ -30,7 +30,7 @@ and barometric pressure chips.
 
 typedef struct Accelerometer_Interface_Struct
 {
-Error_Returns (*chip_init)(uint32_t *id, i2c_inst_t *i2c, uint32_t address);
+Error_Returns (*chip_init)(uint32_t *id, spi_inst_t *spi, uint32_t chip_select);
 Error_Returns (*chip_reset)(uint32_t id);
 uint32_t chip_id;
 } Accelerometer_Interface;
@@ -44,7 +44,7 @@ static Accelerometer_Interface accelerometer_chip[ACCELEROMETER_NUMBER_SUPPORTED
    are attached or could be a compile time assignment if all attached 
    barometers are of the same type.
 */
-Error_Returns accelerometer_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address)
+Error_Returns accelerometer_init(uint32_t *id, spi_inst_t *spi, uint32_t chip_select)
 {
 	Error_Returns to_return = RPi_NotInitialized;
 	do
@@ -56,7 +56,7 @@ Error_Returns accelerometer_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address
 		accelerometer_chip[number_accelerometers_initialized].chip_init = icm20948_init;
 		accelerometer_chip[number_accelerometers_initialized].chip_reset = icm20948_reset;
 
-		to_return = accelerometer_chip[number_accelerometers_initialized].chip_init(&accelerometer_chip[number_accelerometers_initialized].chip_id, i2c, address);
+		to_return = accelerometer_chip[number_accelerometers_initialized].chip_init(&accelerometer_chip[number_accelerometers_initialized].chip_id, spi, chip_select);
 
 		/* If the chip initialization isn't successfull then there is no
 		   need to bother the client with the details, just return that

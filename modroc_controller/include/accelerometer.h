@@ -24,7 +24,7 @@ Interface into the support software for a variety of accelerometers.
 */
 
 #pragma once
-#include "hardware/i2c.h"
+#include "hardware/spi.h"
 
 #include "common.h"
 
@@ -36,6 +36,6 @@ Interface into the support software for a variety of accelerometers.
 	along with a valid ID.
 */
 	
-Error_Returns accelerometer_init(uint32_t *id, i2c_inst_t *i2c, uint32_t address);
+Error_Returns accelerometer_init(uint32_t *id, spi_inst_t *i2c, uint32_t chip_select);
 
 Error_Returns accelerometer_reset(uint32_t id);
